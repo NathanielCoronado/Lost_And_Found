@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Report Found Item | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .report-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 28px; }
+  .report-side .photo-preview { width: 100%; height: 220px; background-size: contain; }
+  .report-side .photo-picker { flex-direction: column; align-items: stretch; }
+  .report-side .photo-controls .btn { width: 100%; }
+  #description { min-height: 150px; }
+  @media (max-width: 800px) {
+    .report-grid { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="page">
+    <form class="card" id="reportForm" novalidate>
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Found item information</h2>
+          <p class="card-sub">Tell us what you found so the owner can claim it.</p>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <div class="report-main">
+          <div class="grid g-2">
+            <div class="field">
+              <label for="itemName">Item name</label>
+              <input type="text" id="itemName" placeholder="Insert item name" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="category">Category</label>
+              <div class="select"><select id="category"></select></div>
+            </div>
+          </div>
+          <div class="field" hidden style="margin-bottom:14px">
+            <label for="categoryDetail">Specify category</label>
+            <input type="text" id="categoryDetail" placeholder="Insert category">
+          </div>
+
+          <div class="grid g-2">
+            <div class="field">
+              <label for="date">Date found</label>
+              <input type="date" id="date">
+            </div>
+            <div class="field">
+              <label for="mobile">Mobile number</label>
+              <input type="tel" id="mobile" inputmode="numeric" maxlength="11" placeholder="09XXXXXXXXX" autocomplete="tel">
+            </div>
+          </div>
+
+          <div class="grid g-2">
+            <div class="field">
+              <label for="location">Location found</label>
+              <div class="select"><select id="location"></select></div>
+            </div>
+            <div class="field" hidden>
+              <label for="locationDetail">Specify location</label>
+              <input type="text" id="locationDetail" placeholder="Insert location">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="description">Description</label>
+            <textarea id="description" placeholder="What it looks like and where exactly you found it. Leave out ID numbers and private details."></textarea>
+          </div>
+        </div>
+
+        <div class="report-side">
+          <span class="field-label">Photo <span>(optional)</span></span>
+          <div class="photo-picker">
+            <div class="photo-preview" id="photoPreview">
+              <span class="ph"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>No photo</span>
+              <button type="button" class="remove-photo" id="removePhoto" aria-label="Remove photo">&times;</button>
+            </div>
+            <div class="photo-controls">
+              <label class="btn btn-ghost" for="photo">Add photo</label>
+              <p class="hint">A clear photo helps the owner recognize their item.</p>
+              <input type="file" id="photo" accept="image/*" hidden>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-teal">Submit found report</button>
+      </div>
+    </form>
+
+    <div class="section-head">
+      <h2 class="section-title">Your found reports</h2>
+      <a href="MONITOR.html">See all in My Reports</a>
+    </div>
+    <div class="item-list" id="myList"></div>
+  </main>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+  var user = LF.requireLogin({ role: 'community', needProfile: true });
+  if (!user) return;
+  LF.mountShell({ title: 'Report Found Item', active: 'FOUND.html' });
+  LF.initReportPage('found', user);
+})();
+</script>
+</body>
+</html>

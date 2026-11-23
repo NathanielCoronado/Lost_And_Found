@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>My Reports | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+</head>
+<body>
+
+  <main class="page">
+    <section class="stats" aria-label="Summary">
+      <button type="button" class="stat" data-filter="lost" aria-pressed="false">
+        <div class="stat-label">Lost reports</div><div class="stat-num n-lost" id="cLost">0</div>
+      </button>
+      <button type="button" class="stat" data-filter="found" aria-pressed="false">
+        <div class="stat-label">Found reports</div><div class="stat-num n-found" id="cFound">0</div>
+      </button>
+      <button type="button" class="stat" data-filter="pending" aria-pressed="false">
+        <div class="stat-label">Pending requests</div><div class="stat-num n-pending" id="cPending">0</div>
+      </button>
+      <button type="button" class="stat" data-filter="claimed" aria-pressed="false">
+        <div class="stat-label">Claimed</div><div class="stat-num n-claimed" id="cClaimed">0</div>
+      </button>
+    </section>
+
+    <h2 class="section-title" style="margin-bottom:14px">Recent activity</h2>
+
+    <form class="filters" id="filters" role="search">
+      <div class="field"><label for="fCategory" class="sr-only">Category</label><div class="select"><select id="fCategory"></select></div></div>
+      <div class="field"><label for="fLocation" class="sr-only">Location</label><div class="select"><select id="fLocation"></select></div></div>
+      <div class="field search-field">
+        <label for="fSearch" class="sr-only">Search by item name or case number</label>
+        <input type="search" id="fSearch" placeholder="Search item name or case number" enterkeyhint="search">
+      </div>
+      <button type="submit" class="btn btn-teal">Search</button>
+    </form>
+
+    <div id="updates"></div>
+    <p class="filter-note" id="filterNote"></p>
+    <div class="item-list" id="activity"></div>
+  </main>
+
+  <div class="modal-backdrop" id="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Found notice / claim request details -->
+  <div class="modal-backdrop top" id="reqModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rqTitle">
+      <button type="button" class="modal-close" id="reqClose" aria-label="Close">&times;</button>
+      <div id="reqBody"></div>
+    </div>
+  </div>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = LF.requireLogin({ role: 'community', needProfile: true });
+  if (!user) return;
+  LF.mountShell({ title: 'My Reports', active: 'MONITOR.html' });
+
+  var esc = LF.esc, fmtDate = LF.fmtDate;
+  function $(id) { return document.getElementById(id); }
+
+  var TYPE_LABEL = { lost: 'Lost', found: 'Found', claim: 'Claim Request', notice: 'Found Notice' };
+  var items = [];
+
+  function load() {
+    items = [];
+    ['lost', 'found', 'claim', 'notice'].forEach(function (kind) {
+      LF.getRecords(kind).forEach(function (r) {
+        if (r.ownerId === user.id) items.push(r);
+      });
+    });
+    items.sort(function (a, b) { return b.createdAt.localeCompare(a.createdAt); });
+  }
+
+  var isRequest = LF.isRequest, statusInfo = LF.statusInfo;
+  // Finder kept the item and will meet the owner directly
+  function withFinder(r) { return r.kind === 'notice' && String(r.where || '').indexOf('With me') === 0; }
+
+  var TESTS = {
+    lost:    function (i) { return i.kind === 'lost'; },
+    found:   function (i) { return i.kind === 'found'; },
+    pending: function (i) { return isRequest(i) && statusInfo(i).text === 'Pending review'; },
+    claimed: function (i) { return !isRequest(i) && (i.status || '').toLowerCase() === 'claimed'; }
+  };
+  var NAMES = { lost: 'lost reports', found: 'found reports', pending: 'pending requests', claimed: 'claimed items' };
+
+  function counts() {
+    $('cLost').textContent = items.filter(TESTS.lost).length;
+    $('cFound').textContent = items.filter(TESTS.found).length;
+    $('cPending').textContent = items.filter(TESTS.pending).length;
+    $('cClaimed').textContent = items.filter(TESTS.claimed).length;
+  }
+
+  /* ---------- Filters ---------- */
+  var fCategory = $('fCategory'), fLocation = $('fLocation'), fSearch = $('fSearch');
+  LF.fillSelect(fCategory, 'All categories', LF.CATEGORIES);
+  LF.fillSelect(fLocation, 'All locations', LF.LOCATIONS);
+  var statBtns = document.querySelectorAll('.stat');
+  var statFilter = '';
+
+  statBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      statFilter = statFilter === btn.dataset.filter ? '' : btn.dataset.filter;
+      statBtns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.filter === statFilter)); });
+      render();
+    });
+  });
+
+  function render() {
+    counts();
+    var cat = fCategory.value, loc = fLocation.value, q = fSearch.value.trim().toLowerCase();
+    var list = items.filter(function (i) {
+      if (statFilter && !TESTS[statFilter](i)) return false;
+      if (cat && i.category !== cat) return false;
+      if (loc && i.location !== loc) return false;
+      if (q && [i.itemName, i.caseNo, i.refCase, i.description, i.message].join(' ').toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+
+    var filtered = statFilter || cat || loc || q;
+    $('filterNote').innerHTML = filtered
+      ? 'Showing ' + list.length + ' ' + (statFilter ? NAMES[statFilter] : (list.length === 1 ? 'item' : 'items')) +
+        '<button type="button" class="link-btn" id="clearAll">Show all</button>'
+      : '';
+    var clear = $('clearAll');
+    if (clear) clear.addEventListener('click', function () {
+      statFilter = '';
+      statBtns.forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      fCategory.value = ''; fLocation.value = ''; fSearch.value = '';
+      [fCategory, fLocation].forEach(LF.markEmpty);
+      render();
+    });
+
+    var box = $('activity');
+    if (!items.length) {
+      box.innerHTML = '<div class="empty">You haven\'t reported anything yet.<br>' +
+        '<a href="REPORT.html">Report a lost item</a> or <a href="FOUND.html">report a found item</a>.</div>';
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="empty">Nothing matches these filters.<br>Try a different category, location, or search word.</div>';
+      return;
+    }
+
+    box.innerHTML = list.map(function (it) {
+      var st = statusInfo(it);
+      var typeCls = it.kind === 'lost' ? 'type-lost' : it.kind === 'found' ? 'type-found' : 'type-request';
+      var meta = isRequest(it)
+        ? ['For #' + esc(it.refCase), fmtDate(it.createdAt)]
+        : [esc(LF.locLabel(it)), fmtDate(it.date), esc(LF.catLabel(it))];
+      var incoming = isRequest(it) ? 0 : LF.requestsFor(it.caseNo).length;
+      var itemSt = isRequest(it) ? LF.itemStatusOf(it) : null;
+      var finderHas = !isRequest(it) && String(it.status).toLowerCase() !== 'claimed' &&
+        LF.requestsFor(it.caseNo).some(function (q) { return withFinder(q) && String(q.status).toLowerCase() !== 'rejected'; });
+      var someoneFound = !isRequest(it) && it.kind === 'lost' && String(it.status).toLowerCase() !== 'claimed' &&
+        LF.requestsFor(it.caseNo).some(function (q) { return q.kind === 'notice' && String(q.status).toLowerCase() !== 'rejected'; });
+      return '<article class="item-card">' +
+        '<div class="item-title">' + esc(it.itemName) + ' <small>#' + esc(it.caseNo) + '</small></div>' +
+        '<div class="item-meta"><span class="' + typeCls + '">' + TYPE_LABEL[it.kind] + '</span> • ' + meta.join(' • ') + '</div>' +
+        '<div class="item-status"><span class="pill ' + st.cls + '">' + st.text + '</span>' + LF.surrenderBadgeHTML(it) +
+          (incoming ? '<span class="pill pill-blue">' + incoming + (incoming > 1 ? ' requests' : ' request') + '</span>' : '') +
+          (itemSt ? '<span class="pill ' + itemSt.cls + '">' + itemSt.text + '</span>' : '') +
+          (isRequest(it) && String(it.status).toLowerCase() === 'rejected' && itemSt && itemSt.text === 'Still open'
+            ? '<span class="pill pill-blue">You can send it again</span>' : '') +
+          (isRequest(it) && it.resubmitCount && String(it.status).toLowerCase() !== 'rejected'
+            ? '<span class="pill pill-gray">Sent again</span>' : '') +
+          (finderHas ? '<span class="pill pill-teal">Finder has it: arrange a meetup</span>'
+            : someoneFound ? '<span class="pill pill-teal">Someone found it: open to claim</span>' : '') + '</div>' +
+        '<div class="item-actions">' +
+          '<button type="button" class="btn btn-primary" data-view="' + esc(it.id) + '">View</button>' +
+          (!isRequest(it) && LF.canEditReport(it) ? '<button type="button" class="btn btn-ghost" data-edit="' + esc(it.id) + '">Edit</button>' : '') +
+          '<button type="button" class="btn btn-danger-outline" data-del="' + esc(it.id) + '">Delete</button>' +
+        '</div></article>';
+    }).join('');
+  }
+
+  $('filters').addEventListener('submit', function (e) { e.preventDefault(); fSearch.blur(); render(); });
+  [fCategory, fLocation].forEach(function (s) { s.addEventListener('change', function () { LF.markEmpty(s); render(); }); });
+  fSearch.addEventListener('search', render);
+
+  function byId(id) { return items.find(function (i) { return i.id === id; }); }
+
+  $('activity').addEventListener('click', function (e) {
+    var v = e.target.closest('[data-view]');
+    if (v) return openModal(byId(v.getAttribute('data-view')));
+    var ed = e.target.closest('[data-edit]');
+    if (ed) { var r = byId(ed.getAttribute('data-edit')); if (r) LF.openReportEditor(r, refreshOpen); return; }
+    var d = e.target.closest('[data-del]');
+    if (d) askDelete(byId(d.getAttribute('data-del')));
+  });
+
+  /* ---------- Delete ---------- */
+  function askDelete(it) {
+    if (!it) return;
+    var req = isRequest(it);
+    var incoming = req ? 0 : LF.requestsFor(it.caseNo).length;
+    LF.confirm({
+      title: req ? 'Delete this ' + TYPE_LABEL[it.kind].toLowerCase() + '?' : 'Delete this report?',
+      message: '"' + it.itemName + '" (#' + it.caseNo + ') will be removed' +
+        (incoming ? ', along with ' + incoming + (incoming > 1 ? ' requests' : ' request') + ' sent for it' : '') +
+        '. This can\'t be undone.',
+      confirmText: req ? 'Delete request' : 'Delete report'
+    }).then(function (yes) {
+      if (!yes) return;
+      LF.deleteRecord(it.kind, it.id);
+      if (modal.classList.contains('show')) { LF.closeModal(modal); currentId = null; }
+      load();
+      render();
+      LF.toast('#' + it.caseNo + ' deleted.');
+    });
+  }
+
+  /* =========================================================
+     FOUND NOTICES / CLAIM REQUESTS FROM OTHERS
+     ========================================================= */
+  var ICON = {
+    view: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+    comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>'
+  };
+  var REQ_LABEL = { notice: 'Found notice', claim: 'Claim request' };
+  function initials(n) { return String(n || '?').split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase(); }
+  function isOpen(r) { var s = String(r.status || '').toLowerCase(); return s !== 'claimed' && s !== 'disposed' && s !== 'closed'; }
+  function notRejected(q) { return String(q.status || '').toLowerCase() !== 'rejected'; }
+  function ago(iso) {
+    var m = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.round(h / 24);
+    return d < 7 ? d + (d === 1 ? ' day ago' : ' days ago') : fmtDate(iso);
+  }
+  // The report of mine that a request points to
+  function myReportFor(q) {
+    return LF.getRecords('lost').concat(LF.getRecords('found'))
+      .find(function (r) { return r.caseNo === q.refCase && r.ownerId === user.id; }) || null;
+  }
+  function myOfficeClaim(report, notice) {
+    return LF.requestsFor(report.caseNo).find(function (c) {
+      return c.kind === 'claim' && c.ownerId === user.id && c.noticeCase === notice.caseNo;
+    }) || null;
+  }
+
+  // Main buttons + a short status note for a request on one of my reports
+  function mainActions(q, report) {
+    var out = { buttons: '', note: '', done: false };
+    if (q.settled) { out.note = 'Completed: the item was returned directly outside the office.'; out.done = true; return out; }
+    if (!report || !isOpen(report)) { out.note = report ? 'This report is closed.' : ''; return out; }
+    if (!notRejected(q)) { out.note = 'The office rejected this ' + REQ_LABEL[q.kind].toLowerCase() + '.'; return out; }
+    if (q.kind === 'notice') {
+      var mine = myOfficeClaim(report, q), finderHas = withFinder(q);
+      var met = '<button type="button" class="btn btn-success" data-settle="' + esc(q.id) + '">We met, I got it (Claimed)</button>';
+      var office = mine ? '' : '<button type="button" class="btn ' + (finderHas ? 'btn-outline' : 'btn-primary') + '" data-claim="' + esc(q.id) + '">Claim at the office</button>';
+      out.buttons = finderHas ? met + office : office + met;
+      if (mine) out.note = 'Your office claim #' + esc(mine.caseNo) + ' is ' + LF.statusInfo(mine).text.toLowerCase() + '. ' + esc(LF.statusInfo(mine).help);
+      else out.note = finderHas ? 'The finder still has your item. Contact them and meet in a safe public place.' : '';
+    } else {
+      var ret = '<button type="button" class="btn btn-success" data-returned="' + esc(q.id) + '">We met, I returned it (Claimed)</button>';
+      var off = q.officeRequested ? '' : '<button type="button" class="btn btn-outline" data-office="' + esc(q.id) + '">Verify at the office</button>';
+      out.buttons = ret + off;
+      if (q.officeRequested) out.note = 'You asked the office to verify this claim. Bring the item to the Lost and Found office.';
+    }
+    return out;
+  }
+
+  function reqCard(q, report) {
+    var a = mainActions(q, report), nComments = (q.comments || []).length, key = q.kind + ':' + q.id;
+    var nBtns = (a.buttons.match(/<button/g) || []).length;
+    return '<article class="rc">' +
+      '<div class="rc-head"><div class="rc-avatar" aria-hidden="true">' + esc(initials(q.name)) + '</div>' +
+        '<div class="rc-who"><b><button type="button" class="name-link" data-profile="' + esc(q.ownerId || '') + '" data-name="' + esc(q.name) + '">' + esc(q.name) + '</button></b><small>' + REQ_LABEL[q.kind] + ' #' + esc(q.caseNo) + ' • ' + ago(q.createdAt) + '</small></div>' +
+        LF.statusPill(q) + '</div>' +
+      '<div class="rc-body">' +
+        (q.where ? '<div class="rc-where">Item is now: ' + esc(q.where) + '</div>' : '') +
+        '<p class="rc-msg">' + esc(q.message) + '</p>' +
+        (q.photo ? '<div class="rc-photo" style="background-image:url(\'' + q.photo + '\')" role="img" aria-label="' + LF.requestPhotos(q).length + ' photo(s) attached">' +
+          (LF.requestPhotos(q).length > 1 ? '<span class="rc-count">+' + (LF.requestPhotos(q).length - 1) + '</span>' : '') + '</div>' : '') +
+        '<div class="rc-meta"><span>' + esc(q.mobile) + '</span>' + (LF.ownerEmailOf(q) ? '<span>' + esc(LF.ownerEmailOf(q)) + '</span>' : '') +
+          '<span>' + nComments + (nComments === 1 ? ' comment' : ' comments') + '</span></div>' +
+      '</div>' +
+      (a.note ? '<p class="rc-note' + (a.done ? ' done' : '') + '">' + a.note + '</p>' : '') +
+      (a.buttons ? '<div class="rc-main-actions"' + (nBtns === 1 ? ' style="grid-template-columns:1fr"' : '') + '>' + a.buttons + '</div>' : '') +
+      '<div class="rc-tools">' +
+        '<button type="button" data-rview="' + esc(key) + '">' + ICON.view + '<span>View details</span></button>' +
+        '<button type="button" data-rcomment="' + esc(key) + '">' + ICON.comment + '<span>Comment</span></button>' +
+        (q.ownerId && q.ownerId !== user.id ? '<button type="button" data-msg-to="' + esc(q.ownerId) + '" data-msg-case="' + esc(report.caseNo) + '">' +
+          ICON.comment + '<span>Message</span></button>' : '') +
+        '<button type="button" class="danger" data-rdel="' + esc(key) + '">' + ICON.trash + '<span>Delete</span></button>' +
+      '</div>' +
+    '</article>';
+  }
+
+  /* ---------- Request details window ---------- */
+  var reqModal = $('reqModal'), reqBody = $('reqBody'), reqOpenKey = null;
+  $('reqClose').addEventListener('click', function () { LF.closeModal(reqModal); reqOpenKey = null; });
+  reqModal.addEventListener('click', function (e) { if (e.target === reqModal) { LF.closeModal(reqModal); reqOpenKey = null; } else handleAction(e); });
+
+  function openReq(key, focusComment) {
+    var p = key.split(':'), q = LF.findRecord(p[0], p[1]);
+    if (!q) { LF.closeModal(reqModal); return; }
+    var report = myReportFor(q), a = mainActions(q, report), email = LF.ownerEmailOf(q);
+    reqOpenKey = key;
+    reqBody.innerHTML =
+      '<div class="rc-head" style="padding:0 44px 0 0"><div class="rc-avatar" aria-hidden="true">' + esc(initials(q.name)) + '</div>' +
+        '<div class="rc-who"><h3 id="rqTitle" style="margin:0"><button type="button" class="name-link" data-profile="' + esc(q.ownerId || '') + '" data-name="' + esc(q.name) + '">' + esc(q.name) + '</button></h3><small>' + REQ_LABEL[q.kind] + ' #' + esc(q.caseNo) + '</small></div></div>' +
+      '<dl class="details" style="margin-top:16px">' +
+        '<dt>Status</dt><dd>' + LF.statusPill(q) + '</dd>' +
+        '<dt>For your item</dt><dd>' + (report ? esc(report.itemName) + ' <small style="color:var(--muted)">#' + esc(report.caseNo) + '</small>' : '#' + esc(q.refCase)) + '</dd>' +
+        '<dt>Contact</dt><dd><a href="tel:' + esc(q.mobile) + '">' + esc(q.mobile) + '</a>' + (email ? '<br><a href="mailto:' + esc(email) + '">' + esc(email) + '</a>' : '') + '</dd>' +
+        '<dt>Sent</dt><dd>' + fmtDate(q.createdAt) + ', ' + LF.fmtTime(q.createdAt) + ' (' + ago(q.createdAt) + ')</dd>' +
+        (q.where ? '<dt>Item is now</dt><dd><b>' + esc(q.where) + '</b></dd>' : '') +
+        '<dt>' + (q.kind === 'claim' ? 'Proof of ownership' : 'Message') + '</dt><dd style="white-space:pre-wrap">' + (esc(q.message) || '—') + '</dd>' +
+        (q.reviewNote && !notRejected(q) ? '<dt>Office note</dt><dd>' + esc(q.reviewNote) + '</dd>' : '') +
+      '</dl>' +
+      '<div class="rq-section"><h4>Photos</h4>' + LF.requestPhotosHTML(q) + '</div>' +
+      (a.note ? '<p class="rc-note' + (a.done ? ' done' : '') + '" style="margin:16px 0 0">' + a.note + '</p>' : '') +
+      (a.buttons ? '<div class="rc-main-actions" style="padding:12px 0 0">' + a.buttons + '</div>' : '') +
+      '<div class="rq-section"><h4>Comments (' + (q.comments || []).length + ')</h4>' +
+        LF.commentsHTML(q) + LF.commentFormHTML(key, 'Insert question or details') + '</div>' +
+      '<div class="modal-actions">' +
+        '<button type="button" class="btn btn-danger-outline" data-rdel="' + esc(key) + '">Delete ' + REQ_LABEL[q.kind].toLowerCase() + '</button>' +
+      '</div>';
+    LF.openModal(reqModal);
+    var list = reqBody.querySelector('.comments');
+    if (focusComment) {
+      var ta = reqBody.querySelector('.c-form textarea');
+      setTimeout(function () { ta.scrollIntoView({ block: 'center' }); ta.focus(); }, 60);
+    } else if (list && reqModal.querySelector('.modal')) {
+      reqModal.querySelector('.modal').scrollTop = 0;
+    }
+  }
+
+  /* ---------- Refresh whatever is open ---------- */
+  var currentId = null;
+  function refreshOpen() {
+    load(); render();
+    if (modal.classList.contains('show') && currentId) {
+      var it = byId(currentId);
+      if (it) openModal(it, true); else LF.closeModal(modal);
+    }
+    if (reqModal.classList.contains('show') && reqOpenKey) openReq(reqOpenKey);
+  }
+
+  /* ---------- Actions ---------- */
+  function handleAction(e) {
+    var b;
+    if ((b = e.target.closest('[data-rview]'))) return openReq(b.dataset.rview, false);
+    if ((b = e.target.closest('[data-rcomment]'))) return openReq(b.dataset.rcomment, true);
+    if ((b = e.target.closest('[data-rdel]'))) return deleteRequest(b.dataset.rdel);
+    if ((b = e.target.closest('[data-settle]'))) return settle(b.dataset.settle);
+    if ((b = e.target.closest('[data-claim]'))) return claimFromNotice(b.dataset.claim);
+    if ((b = e.target.closest('[data-returned]'))) return returnedDirect(b.dataset.returned);
+    if ((b = e.target.closest('[data-office]'))) return askOffice(b.dataset.office);
+    if ((b = e.target.closest('[data-del]'))) return askDelete(byId(b.getAttribute('data-del')));
+    if ((b = e.target.closest('[data-resend]'))) return sendAgain(b.dataset.resend);
+    if ((b = e.target.closest('[data-edit], [data-edit-photo]'))) {
+      var rec = byId(b.getAttribute('data-edit') || b.getAttribute('data-edit-photo'));
+      if (rec) LF.openReportEditor(rec, refreshOpen, { focusPhoto: b.hasAttribute('data-edit-photo') });
+      return;
+    }
+  }
+
+  // Declined notice/claim: send it again (keeps photos and comments)
+  function sendAgain(key) {
+    var p = key.split(':'), q = LF.findRecord(p[0], p[1]);
+    if (!q) return;
+    var msg = ($('resendMsg') && $('resendMsg').value.trim()) || q.message;
+    if (msg.length < 10) { LF.toast('Write at least 10 characters.', true); $('resendMsg').focus(); return; }
+    LF.confirm({
+      title: 'Send it again?',
+      message: REQ_LABEL[q.kind] + ' #' + q.caseNo + ' will go back to the office for review. The admin and staff will be notified.',
+      confirmText: 'Send again', danger: false
+    }).then(function (yes) {
+      if (!yes) return;
+      if (!LF.resubmitRequest(q.kind, q.id, msg)) { LF.toast(LF.STORAGE_FULL, true); return; }
+      refreshOpen();
+      LF.toast(REQ_LABEL[q.kind] + ' #' + q.caseNo + ' was sent again. You\'ll get an update here once it\'s reviewed.');
+    });
+  }
+
+  /* ---------- Add / delete proof photos on my own notice or claim ---------- */
+  document.addEventListener('change', function (e) {
+    var inp = e.target.closest('.rq-add-input');
+    if (!inp) return;
+    var f = inp.files[0], p = inp.dataset.addphoto.split(':');
+    inp.value = '';
+    if (!f) return;
+    var q = LF.findRecord(p[0], p[1]);
+    if (!q || !LF.canEditRequestPhotos(q)) { LF.toast('Photos can no longer be changed on this request.', true); return; }
+    LF.readPhoto(f).then(function (data) {
+      var list = LF.requestPhotos(q);
+      if (list.length >= LF.MAX_REQ_PHOTOS) { LF.toast('You can attach up to ' + LF.MAX_REQ_PHOTOS + ' photos.', true); return; }
+      list.push(data);
+      if (!LF.setRequestPhotos(q.kind, q.id, list, 'Added a ' + (q.kind === 'claim' ? 'proof ' : '') + 'photo')) { LF.toast(LF.STORAGE_FULL, true); return; }
+      LF.logActivity(user.id, 'Added a photo to ' + REQ_LABEL[q.kind].toLowerCase() + ' #' + q.caseNo);
+      LF.notify(LF.displayName(user) + ' added a ' + (q.kind === 'claim' ? 'proof ' : '') + 'photo to ' + REQ_LABEL[q.kind].toLowerCase() +
+        ' #' + q.caseNo + ' (for #' + q.refCase + ').', q.refCase);
+      refreshOpen();
+      LF.toast('Photo added. Staff and admin can see it now.');
+    }).catch(function (err) { LF.toast(err.message, true); });
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rmphoto]');
+    if (!b) return;
+    e.preventDefault();
+    var p = b.dataset.rmphoto.split(':'), idx = +p[2];
+    var q = LF.findRecord(p[0], p[1]);
+    if (!q || !LF.canEditRequestPhotos(q)) { LF.toast('Photos can no longer be changed on this request.', true); return; }
+    LF.confirm({
+      title: 'Delete this photo?',
+      message: 'It will be removed from ' + REQ_LABEL[q.kind].toLowerCase() + ' #' + q.caseNo + '. You can undo this for 10 seconds.',
+      confirmText: 'Delete photo'
+    }).then(function (yes) {
+      if (!yes) return;
+      var before = LF.requestPhotos(q), list = before.slice(), removed = list.splice(idx, 1)[0];
+      LF.setRequestPhotos(q.kind, q.id, list, 'Deleted a photo');
+      LF.notify(LF.displayName(user) + ' deleted a photo from ' + REQ_LABEL[q.kind].toLowerCase() + ' #' + q.caseNo + '.', q.refCase);
+      refreshOpen();
+      LF.toast('Photo deleted.', false, {
+        label: 'Undo', ms: LF.TRASH_MS,
+        fn: function () {
+          var cur = LF.findRecord(q.kind, q.id);
+          if (!cur) return;
+          var back = LF.requestPhotos(cur);
+          back.splice(Math.min(idx, back.length), 0, removed);
+          LF.setRequestPhotos(q.kind, q.id, back.slice(0, LF.MAX_REQ_PHOTOS), 'Restored a photo');
+          refreshOpen(); LF.toast('Photo restored.');
+        }
+      });
+    });
+  });
+
+  // Comments (in either window)
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest('.c-form');
+    if (!f) return;
+    e.preventDefault();
+    var ta = f.querySelector('textarea'), text = ta.value.trim();
+    if (!text) { ta.focus(); return; }
+    var p = f.dataset.ckey.split(':');
+    var saved = LF.addComment(p[0], p[1], text);
+    if (!saved) { LF.toast(LF.STORAGE_FULL, true); return; }
+    LF.notify(LF.displayName(user) + ' commented on ' + REQ_LABEL[saved.kind].toLowerCase() + ' #' + saved.caseNo +
+      ' (for #' + saved.refCase + '): "' + text.slice(0, 120) + (text.length > 120 ? '…' : '') + '"', saved.refCase);
+    refreshOpen();
+    LF.toast('Comment posted. The other person, staff, and admin can see it.');
+  });
+
+  // Remove a notice/claim someone sent for my report (10 seconds to undo)
+  function deleteRequest(key) {
+    var p = key.split(':'), q = LF.findRecord(p[0], p[1]);
+    if (!q) return;
+    LF.confirm({
+      title: 'Delete this ' + REQ_LABEL[q.kind].toLowerCase() + '?',
+      message: REQ_LABEL[q.kind] + ' #' + q.caseNo + ' from ' + q.name + ' will be removed from your report, along with its comments. ' +
+        'Only do this if it isn\'t your item or it was sent by mistake. The admin will be notified.',
+      confirmText: 'Delete'
+    }).then(function (yes) {
+      if (!yes) return;
+      var trash = LF.trashRecord(q.kind, q.id);
+      LF.notify(LF.displayName(user) + ' deleted ' + REQ_LABEL[q.kind].toLowerCase() + ' #' + q.caseNo + ' from ' + q.name + ' on report #' + q.refCase + '.', q.refCase);
+      LF.logActivity(user.id, 'Deleted ' + REQ_LABEL[q.kind].toLowerCase() + ' #' + q.caseNo + ' on #' + q.refCase);
+      LF.closeModal(reqModal); reqOpenKey = null;
+      refreshOpen();
+      LF.toast(REQ_LABEL[q.kind] + ' #' + q.caseNo + ' deleted.', false, trash && !trash.noRetrieve ? {
+        label: 'Undo', ms: LF.TRASH_MS,
+        fn: function () {
+          if (LF.restoreTrash(trash.id)) {
+            LF.notify(LF.displayName(user) + ' restored ' + REQ_LABEL[q.kind].toLowerCase() + ' #' + q.caseNo + '.', q.refCase);
+            refreshOpen(); LF.toast('Restored.');
+          } else LF.toast('Too late to undo (10 seconds).', true);
+        }
+      } : null);
+    });
+  }
+
+  /* ---------- Lost report owner: met the finder outside the office ---------- */
+  function settle(noticeId) {
+    var notice = LF.findRecord('notice', noticeId);
+    if (!notice) return;
+    var report = LF.getRecords('lost').find(function (r) { return r.caseNo === notice.refCase && r.ownerId === user.id; });
+    if (!report) return;
+    LF.confirm({
+      title: 'Did you get your item?',
+      message: 'This marks "' + report.itemName + '" (#' + report.caseNo + ') as claimed, returned to you by ' + notice.name +
+        ' outside the office. The admin will be notified. Only confirm once the item is in your hands.',
+      confirmText: 'Yes, I got it', danger: false
+    }).then(function (yes) {
+      if (!yes) return;
+      LF.updateRecord('lost', report.id, { status: 'Claimed', settledWith: notice.name },
+        'Owner got the item back', 'Returned directly by ' + notice.name + ' (' + notice.caseNo + ')');
+      LF.updateRecord('notice', notice.id, { status: 'Approved', settled: true }, 'Item returned to owner', 'Confirmed by the owner');
+      LF.logActivity(user.id, 'Confirmed getting back #' + report.caseNo + ' (' + report.itemName + ') from ' + notice.name);
+      LF.notify(LF.displayName(user) + ' marked #' + report.caseNo + ' (' + report.itemName + ') as claimed after meeting the finder, ' +
+        notice.name + ', outside the office.', report.caseNo);
+      refreshOpen();
+      LF.toast('#' + report.caseNo + ' is marked as claimed. The admin was notified.');
+    });
+  }
+
+  /* ---------- Lost report owner: claim through the office ---------- */
+  function claimFromNotice(noticeId) {
+    var notice = LF.findRecord('notice', noticeId);
+    if (!notice) return;
+    var report = LF.getRecords('lost').find(function (r) { return r.caseNo === notice.refCase && r.ownerId === user.id; });
+    if (!report) return;
+    LF.confirm({
+      title: 'Claim at the office?',
+      message: 'The admin and staff will be notified that you want to claim "' + report.itemName + '" (#' + report.caseNo +
+        '), reported found by ' + notice.name + '. They will verify it\'s yours and tell you when to pick it up. Bring a valid ID.',
+      confirmText: 'Send claim', danger: false
+    }).then(function (yes) {
+      if (!yes) return;
+      var pr = user.profile || {};
+      var rec = LF.addRecord('claim', {
+        refCase: report.caseNo, refKind: 'lost', noticeCase: notice.caseNo,
+        itemName: report.itemName, category: report.category, categoryDetail: report.categoryDetail || '',
+        location: report.location, locationDetail: report.locationDetail || '',
+        name: LF.displayName(user), mobile: pr.mobile || report.mobile,
+        message: 'I am the owner of lost report #' + report.caseNo + ' and want to claim the item that ' + notice.name +
+          ' reported in found notice #' + notice.caseNo + ' (item is now: ' + (notice.where || 'not stated') + ').',
+        status: 'Pending Review'
+      });
+      if (!rec) { LF.toast(LF.STORAGE_FULL, true); return; }
+      LF.notify(LF.displayName(user) + ' wants to claim #' + report.caseNo + ' (' + report.itemName + ') at the office. Claim request #' +
+        rec.caseNo + ', found by ' + notice.name + '.', report.caseNo);
+      refreshOpen();
+      LF.toast('Claim sent as #' + rec.caseNo + '. The admin and staff have been notified.');
+    });
+  }
+
+  /* ---------- Found report owner (finder): returned it directly ---------- */
+  function returnedDirect(claimId) {
+    var claim = LF.findRecord('claim', claimId);
+    if (!claim) return;
+    var report = LF.getRecords('found').find(function (r) { return r.caseNo === claim.refCase && r.ownerId === user.id; });
+    if (!report) return;
+    LF.confirm({
+      title: 'Did you return the item?',
+      message: 'This marks "' + report.itemName + '" (#' + report.caseNo + ') as claimed by ' + claim.name +
+        ' after meeting outside the office. The admin will be notified. Only confirm once they have the item.',
+      confirmText: 'Yes, I returned it', danger: false
+    }).then(function (yes) {
+      if (!yes) return;
+      LF.updateRecord('found', report.id, { status: 'Claimed', settledWith: claim.name },
+        'Returned to owner directly', 'Given to ' + claim.name + ' (' + claim.caseNo + ')');
+      LF.updateRecord('claim', claim.id, { status: 'Approved', settled: true }, 'Item returned by the finder', 'Confirmed by the finder');
+      LF.logActivity(user.id, 'Returned #' + report.caseNo + ' (' + report.itemName + ') directly to ' + claim.name);
+      LF.notify(LF.displayName(user) + ' returned #' + report.caseNo + ' (' + report.itemName + ') directly to ' + claim.name +
+        ' outside the office and marked it as claimed.', report.caseNo);
+      refreshOpen();
+      LF.toast('#' + report.caseNo + ' is marked as claimed. The admin was notified.');
+    });
+  }
+
+  /* ---------- Found report owner (finder): ask the office to verify ---------- */
+  function askOffice(claimId) {
+    var claim = LF.findRecord('claim', claimId);
+    if (!claim) return;
+    LF.confirm({
+      title: 'Verify at the office?',
+      message: 'The admin and staff will be asked to verify claim #' + claim.caseNo + ' from ' + claim.name +
+        '. Please bring the item to the Lost and Found office.',
+      confirmText: 'Send to the office', danger: false
+    }).then(function (yes) {
+      if (!yes) return;
+      LF.updateRecord('claim', claim.id, { officeRequested: true }, 'Finder asked the office to verify');
+      LF.notify(LF.displayName(user) + ' asked the office to verify claim #' + claim.caseNo + ' from ' + claim.name +
+        ' for #' + claim.refCase + ' (' + claim.itemName + ').', claim.refCase);
+      refreshOpen();
+      LF.toast('Sent to the office. The admin and staff have been notified.');
+    });
+  }
+
+  /* ---------- Report / request window ---------- */
+  var modal = $('modal'), body = $('modalBody');
+  $('modalClose').addEventListener('click', function () { LF.closeModal(modal); currentId = null; });
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) { LF.closeModal(modal); currentId = null; return; }
+    handleAction(e);
+  });
+
+  function openModal(it, keepScroll) {
+    if (!it) return;
+    currentId = it.id;
+    var st = statusInfo(it), req = isRequest(it);
+    var finderHas = !req && String(it.status).toLowerCase() !== 'claimed' &&
+      LF.requestsFor(it.caseNo).some(function (q) { return withFinder(q) && notRejected(q); });
+    if (finderHas) st = Object.assign({}, st, { text: 'Finder has your item', cls: 'pill-teal',
+      help: 'Someone found your item and still has it. Open their found notice below to contact them.' });
+    var rows = [
+      ['Status', '<span class="pill ' + st.cls + '">' + st.text + '</span>'],
+      req ? ['For item', '#' + esc(it.refCase)] : null,
+      it.category ? ['Category', esc(LF.catLabel(it))] : null,
+      it.location ? ['Location', esc(LF.locLabel(it))] : null,
+      req ? ['Date sent', fmtDate(it.createdAt)] : ['Date ' + it.kind, fmtDate(it.date)],
+      LF.isMonitored(it) ? [it.kind === 'found' ? 'Kept until' : 'Open until',
+        fmtDate(LF.holdInfo(it).until) + ' (' + Math.max(0, LF.holdInfo(it).left) + ' days left)'] : null,
+      it.where ? ['Item is now', esc(it.where)] : null,
+      it.mobile ? ['Your mobile', esc(it.mobile)] : null,
+      [it.kind === 'claim' ? 'Your proof' : 'Description', esc(req ? it.message : it.description) || '—']
+    ].filter(Boolean);
+
+    // Notices/claims from others (my office claims show on their notice)
+    var incoming = req ? [] : LF.requestsFor(it.caseNo).filter(function (q) { return q.ownerId !== user.id; });
+    var incomingHTML = req ? '' :
+      '<h4>' + (it.kind === 'lost' ? 'Found notices from others' : 'Claim requests from others') + ' (' + incoming.length + ')</h4>' +
+      (incoming.length ? '<div class="rc-list">' + incoming.map(function (q) { return reqCard(q, it); }).join('') + '</div>'
+        : '<p>None yet. You\'ll see them here when someone responds.</p>');
+
+    // My own notice / claim: show the conversation
+    var itemState = '';
+    if (req) {
+      var is = LF.itemStatusOf(it);
+      itemState = '<div class="item-state"><b>' + (it.kind === 'notice' ? 'Lost item' : 'Found item') + ' status:</b> ' +
+        '<span class="pill ' + is.cls + '">' + is.text + '</span><span>' + esc(is.note) + '</span></div>' +
+        '<div class="rq-section"><h4>Photos</h4>' + LF.requestPhotosHTML(it, { editable: LF.canEditRequestPhotos(it), mine: true }) + '</div>';
+      if (String(it.status).toLowerCase() === 'rejected' && is.text === 'Still open') {
+        itemState += '<div class="resend-box" id="resendBox">' +
+          '<h4>This ' + REQ_LABEL[it.kind].toLowerCase() + ' was declined</h4>' +
+          (it.reviewNote ? '<p style="font-size:14px">Comment from the office:</p><p class="reason">' + esc(it.reviewNote) + '</p>'
+                         : '<p style="font-size:14px;margin-bottom:10px">The office didn\'t leave a comment.</p>') +
+          '<p style="font-size:14px">Update your message or photos above, then send it again. The admin and staff will be notified.</p>' +
+          '<div class="field" style="margin-top:10px"><label for="resendMsg">' + (it.kind === 'claim' ? 'Proof of ownership' : 'Message') + '</label>' +
+          '<textarea id="resendMsg">' + esc(it.message) + '</textarea></div>' +
+          '<button type="button" class="btn btn-primary" data-resend="' + esc(it.kind + ':' + it.id) + '">Send again</button>' +
+        '</div>';
+      }
+    }
+    var repOf = req ? LF.getRecords('lost').concat(LF.getRecords('found')).find(function (x) { return x.caseNo === it.refCase; }) : null;
+    var msgBtn = req && repOf && repOf.ownerId && repOf.ownerId !== user.id
+      ? '<div class="msg-row">' + LF.messageBtnHTML(repOf.ownerId, repOf.caseNo, it.kind === 'claim' ? 'Message the finder' : 'Message the owner', 'btn btn-outline btn-block') + '</div>' : '';
+    var myThread = msgBtn + (req ? '<div class="rq-section"><h4>Comments (' + (it.comments || []).length + ')</h4>' +
+      LF.commentsHTML(it) + LF.commentFormHTML(it.kind + ':' + it.id, 'Reply to the item owner, staff, or admin.') + '</div>' : '');
+
+    var showSeek = !req && st.cls === 'pill-purple';
+    var scroller = modal.querySelector('.modal'), y = keepScroll ? scroller.scrollTop : 0;
+
+    body.innerHTML =
+      '<h3 id="mTitle">' + esc(it.itemName) + '</h3>' +
+      '<p class="case">#' + esc(it.caseNo) + ' • ' + TYPE_LABEL[it.kind] + '</p>' +
+      (req ? '' : LF.photoGalleryHTML(it) +
+        (!it.photo && LF.canEditReport(it) ? '<button type="button" class="btn btn-outline btn-block add-photo-cta" data-edit-photo="' + esc(it.id) + '">Add a photo</button>' : '')) +
+      '<dl class="details">' + rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('') + '</dl>' +
+      '<p class="status-help">' + st.help + '</p>' +
+      (req ? '' : LF.surrenderBoxHTML(it)) + itemState + incomingHTML + myThread + (req ? '' : LF.reportCommentsHTML(it)) +
+      ((it.history || []).length ? '<h4>History</h4>' + LF.timelineHTML(it) : '') +
+      '<div class="modal-actions">' +
+        '<button type="button" class="btn btn-danger-outline" data-del="' + esc(it.id) + '">Delete</button>' +
+        (!req && LF.canEditReport(it) ? '<button type="button" class="btn btn-ghost" data-edit="' + esc(it.id) + '">Edit report</button>' : '') +
+        (showSeek ? '<a class="btn btn-teal" href="SEEK.html?q=' + encodeURIComponent(it.caseNo) + '">Check possible matches</a>' : '') +
+      '</div>';
+    if (!modal.classList.contains('show')) { LF.openModal(modal); $('modalClose').focus(); }
+    scroller.scrollTop = y;
+  }
+
+  function renderUpdates() {
+    // only show when there's something new; the full list is on the Notifications page
+    var box = $('updates'), hasNew = LF.unreadCount(user) > 0;
+    box.className = hasNew ? 'card updates' : '';
+    box.innerHTML = hasNew ? LF.notesPreviewHTML(user, 3, 'Updates') : '';
+  }
+
+  var qs = new URLSearchParams(location.search);
+  if (qs.get('q')) fSearch.value = qs.get('q');
+  renderUpdates();
+  load();
+  render();
+  // Coming from Report Lost / Found (or "View"): open that report
+  if (qs.get('open')) {
+    var opened = byId(qs.get('open'));
+    if (opened) openModal(opened);
+    history.replaceState(null, '', 'MONITOR.html');
+  }
+})();
+</script>
+</body>
+</html>

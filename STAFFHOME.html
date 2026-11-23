@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Staff Home | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .hello { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
+  .hello .logo-box { width: 72px; height: 72px; flex-shrink: 0; border-radius: 50%; overflow: hidden; }
+  .hello h2 { font-size: 26px; color: var(--navy); line-height: 1.2; }
+  .hello p { color: var(--muted); margin-top: 2px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .tile { display: block; text-decoration: none; color: inherit; background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
+  .tile:hover { border-color: var(--blue); }
+  .tile .num { font-size: 36px; font-weight: 700; line-height: 1.1; }
+  .tile .lbl { font-weight: 600; }
+  .tile small { color: var(--muted); display: block; margin-top: 2px; }
+  .home-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .home-cols .card { padding: 22px; }
+  .home-cols h3 { font-size: 19px; color: var(--navy); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .home-cols h3 a { font-size: 14px; font-weight: 600; text-decoration: none; }
+  .mini { list-style: none; }
+  .mini li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .mini li:last-child { border-bottom: none; }
+  .mini strong { display: block; color: var(--navy); font-size: 15px; }
+  .mini small { color: var(--muted); font-size: 13px; }
+  .mini .btn { min-height: 38px; padding: 0 14px; font-size: 14px; flex-shrink: 0; }
+  .none { color: var(--muted); font-size: 15px; padding: 10px 0; }
+  .notif-card { padding: 20px 22px; }
+  .notif-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .notif-head h3 { font-size: 19px; color: var(--navy); }
+  .notif-head .link-btn { margin: 0; }
+  .wide { grid-column: 1 / -1; }
+  @media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .home-cols { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 520px) { .hello h2 { font-size: 21px; } .hello .logo-box { width: 56px; height: 56px; } .tile { padding: 14px; } .tile .num { font-size: 30px; } }
+</style>
+</head>
+<body>
+
+  <main class="page">
+    <div class="hello">
+      <div class="logo-box" id="logo"></div>
+      <div>
+        <h2 id="hello">Welcome</h2>
+        <p id="today"></p>
+      </div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <section class="card notif-card" id="notifCard" aria-label="Latest notifications" style="margin-bottom:20px"></section>
+
+    <div class="home-cols">
+      <section class="card" aria-labelledby="t1">
+        <h3 id="t1">Next to review <a href="STAFF.html?status=review">See all</a></h3>
+        <ul class="mini" id="nextList"></ul>
+      </section>
+      <section class="card" aria-labelledby="t2">
+        <h3 id="t2">Due for disposal <a href="STAFF.html?status=due">See all</a></h3>
+        <ul class="mini" id="dueList"></ul>
+      </section>
+      <section class="card" aria-labelledby="t3">
+        <h3 id="t3">Pending requests <a href="STAFF.html?tab=requests&amp;status=pending">See all</a></h3>
+        <ul class="mini" id="reqList"></ul>
+      </section>
+      <section class="card" aria-labelledby="t4">
+        <h3 id="t4">Your recent actions</h3>
+        <ul class="activity-feed" id="myActions"></ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- First visit: staff profile -->
+  <div class="modal-backdrop" id="profileModal" data-static>
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+      <h3 id="pTitle" style="text-align:center;margin-right:0">Complete your staff profile</h3>
+      <p style="text-align:center;margin:8px 0 22px">Your staff account is approved. Add your details once, then you can start reviewing reports.</p>
+      <form id="profileForm" novalidate>
+        <div id="profileFields"></div>
+        <div class="form-actions"><button type="submit" class="btn btn-success">Save and continue</button></div>
+      </form>
+    </div>
+  </div>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = LF.requireLogin({ role: 'staff' });
+  if (!user) return;
+  LF.mountShell({ title: 'Staff Home', active: 'STAFFHOME.html' });
+
+  var esc = LF.esc;
+  function $(id) { return document.getElementById(id); }
+  function ago(iso) {
+    var m = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.round(h / 24);
+    return d < 7 ? d + (d === 1 ? ' day ago' : ' days ago') : LF.fmtDate(iso);
+  }
+  function stage(r) {
+    var s = String(r.status || '').toLowerCase();
+    if (s === 'claimed' || s === 'disposed' || s === 'closed') return s;
+    return r.review || 'posted';
+  }
+  function isDue(r) { return LF.isMonitored(r) && LF.holdInfo(r).due; }
+
+  function render() {
+    var me = LF.getUser(user.id) || user;
+    var hour = new Date().getHours();
+    $('hello').textContent = (hour < 12 ? 'Good morning, ' : hour < 18 ? 'Good afternoon, ' : 'Good evening, ') + ((me.profile && me.profile.firstName) || me.firstName);
+    $('today').textContent = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    LF.renderLogo($('logo'));
+
+    var reps = LF.getRecords('lost').concat(LF.getRecords('found'));
+    var reqs = LF.getRecords('claim').concat(LF.getRecords('notice'));
+    var review = reps.filter(function (r) { return stage(r) === 'pending'; }).sort(function (a, b) { return a.createdAt.localeCompare(b.createdAt); });
+    var ready = reps.filter(function (r) { return stage(r) === 'approved'; });
+    var due = reps.filter(isDue).sort(function (a, b) { return LF.holdInfo(b).days - LF.holdInfo(a).days; });
+    var pendReq = reqs.filter(function (r) { var s = String(r.status || '').toLowerCase(); return s !== 'approved' && s !== 'rejected'; });
+
+    $('tiles').innerHTML =
+      '<a class="tile" href="STAFF.html?status=review"><div class="num" style="color:var(--orange)">' + review.length + '</div><div class="lbl">Needs review</div><small>New reports from users</small></a>' +
+      '<a class="tile" href="STAFF.html?status=approved"><div class="num" style="color:var(--blue)">' + ready.length + '</div><div class="lbl">Ready to post</div><small>Approved, not posted yet</small></a>' +
+      '<a class="tile" href="STAFF.html?tab=requests&amp;status=pending"><div class="num" style="color:var(--red)">' + pendReq.length + '</div><div class="lbl">Pending requests</div><small>Claims and found notices</small></a>' +
+      '<a class="tile" href="STAFF.html?status=due"><div class="num" style="color:#7a3c00">' + due.length + '</div><div class="lbl">Due for disposal</div><small>Kept ' + LF.HOLD_DAYS + '+ days</small></a>';
+
+    function li(r, sub, btn, href) {
+      return '<li><div><strong>' + esc(r.itemName) + ' <small>#' + esc(r.caseNo) + '</small></strong><small>' + sub + '</small></div>' +
+        '<a class="btn btn-ghost" href="' + href + '">' + btn + '</a></li>';
+    }
+    $('nextList').innerHTML = review.length ? review.slice(0, 5).map(function (r) {
+      return li(r, (r.kind === 'lost' ? 'Lost' : 'Found') + ' • by ' + esc(LF.ownerNameOf(r)) + ' • ' + ago(r.createdAt), 'Review', 'STAFF.html?status=review');
+    }).join('') : '<li class="none">Nothing to review right now.</li>';
+    $('dueList').innerHTML = due.length ? due.slice(0, 5).map(function (r) {
+      return li(r, LF.holdInfo(r).days + ' days kept • ' + esc(LF.locLabel(r)), r.kind === 'found' ? 'Dispose' : 'Close', 'STAFF.html?status=due');
+    }).join('') : '<li class="none">No items are due for disposal.</li>';
+    $('reqList').innerHTML = pendReq.length ? pendReq.slice(0, 5).map(function (r) {
+      return li(r, (r.kind === 'claim' ? 'Claim request' : 'Found notice') + ' for #' + esc(r.refCase) + ' • ' + esc(r.name || '') + ' • ' + ago(r.createdAt), 'Open', 'STAFF.html?tab=requests&status=pending');
+    }).join('') : '<li class="none">No pending requests.</li>';
+
+    // Latest 3 notifications; everything is on the Notifications page
+    $('notifCard').innerHTML = LF.notesPreviewHTML(me, 3, 'Notifications');
+
+    // Your own actions, taken from each report's history
+    var name = LF.displayName(me), mine = [];
+    reps.concat(reqs).forEach(function (r) {
+      (r.history || []).forEach(function (h) { if (h.by === name && h.action !== 'Submitted') mine.push({ r: r, h: h }); });
+    });
+    mine.sort(function (a, b) { return b.h.at.localeCompare(a.h.at); });
+    $('myActions').innerHTML = mine.length ? mine.slice(0, 8).map(function (x) {
+      return '<li><span class="dot"></span><div>' + esc(x.h.action) + ': ' + esc(x.r.itemName) + ' #' + esc(x.r.caseNo) + '<small>' + ago(x.h.at) + '</small></div></li>';
+    }).join('') : '<li class="none">Your approvals, posts, and other actions will show here.</li>';
+  }
+
+  /* ---------- First visit: staff profile ---------- */
+  if (!user.profileCompleted) {
+    var pf = LF.profileForm($('profileFields'), { userId: user.id });
+    pf.write({ firstName: user.firstName, lastName: user.lastName, email: user.email, photo: (user.profile && user.profile.photo) || null });
+    LF.openModal($('profileModal'));
+    $('profileForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var bad = pf.validate();
+      if (bad) { bad.focus(); LF.toast('Fix the highlighted fields.', true); return; }
+      var d = pf.read();
+      var saved = LF.updateUser(user.id, { profileCompleted: true, profile: d, firstName: d.firstName, lastName: d.lastName, email: d.email });
+      if (!saved) { LF.toast(LF.STORAGE_FULL, true); return; }
+      user = saved;
+      LF.logActivity(user.id, 'Completed their profile');
+      LF.closeModal($('profileModal'));
+      LF.refreshShellUser();
+      render();
+      LF.toast('Profile saved. You can start reviewing.');
+    });
+  }
+
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Matching &amp; Search | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+</head>
+<body>
+
+  <main class="page">
+    <h2 class="page-title">Possible matches</h2>
+
+    <form class="filters" id="filters" role="search">
+      <div class="field"><label for="fCategory" class="sr-only">Category</label><div class="select"><select id="fCategory"></select></div></div>
+      <div class="field"><label for="fLocation" class="sr-only">Location</label><div class="select"><select id="fLocation"></select></div></div>
+      <div class="field search-field">
+        <label for="fSearch" class="sr-only">Search by item name, case number or description</label>
+        <input type="search" id="fSearch" placeholder="Search item name or case number" enterkeyhint="search">
+      </div>
+      <button type="submit" class="btn btn-teal">Search</button>
+    </form>
+
+    <p class="filter-note" id="resultCount"></p>
+    <div class="item-list" id="results"></div>
+  </main>
+
+  <!-- Details / request modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = LF.requireLogin({ role: 'community', needProfile: true });
+  if (!user) return;
+  LF.mountShell({ title: 'Matching & Search', active: 'SEEK.html' });
+
+  var esc = LF.esc, fmtDate = LF.fmtDate;
+  function $(id) { return document.getElementById(id); }
+
+  var items = [];
+  function loadItems() {
+    // Other people's reports appear once staff post them; your own always appear.
+    items = LF.getRecords('lost').concat(LF.getRecords('found')).filter(function (r) {
+      return LF.isPublic(r) || r.ownerId === user.id;
+    }).map(function (r) {
+      return Object.assign({}, r, { mine: r.ownerId === user.id });
+    });
+    items.forEach(function (it) { it.matches = items.filter(function (o) { return o !== it && isMatch(it, o); }); });
+  }
+
+  /* ---------- Matching ----------
+     A lost and a found item match when they share the same category AND
+     (same location OR a common word in the name), and the item was found
+     on or after the day it was lost. */
+  var STOP = { the: 1, a: 1, an: 1, of: 1, with: 1, and: 1, my: 1 };
+  function words(s) {
+    return String(s || '').toLowerCase().split(/\W+/).filter(function (w) { return w.length > 2 && !STOP[w]; });
+  }
+  function isMatch(a, b) {
+    if (a.kind === b.kind) return false;
+    if (!LF.isPublic(a) || !LF.isPublic(b)) return false;
+    var closed = ['Disposed', 'Claimed', 'Closed'];
+    if (closed.indexOf(a.status) !== -1 || closed.indexOf(b.status) !== -1) return false;
+    if (a.category !== b.category) return false;
+    var lost = a.kind === 'lost' ? a : b, found = a.kind === 'lost' ? b : a;
+    if (lost.date && found.date && found.date < lost.date) return false;
+    if (a.location === b.location) return true;
+    var wb = words(b.itemName);
+    return words(a.itemName).some(function (w) { return wb.indexOf(w) !== -1; });
+  }
+
+  var statusPill = function (it) { return LF.statusPill(it) + LF.surrenderBadgeHTML(it); };
+
+  /* ---------- Found notice / claim request ----------
+     Someone's lost report -> you can say "I found this"
+     Someone's found report -> you can "Request to claim" */
+  function actionFor(it) {
+    if (it.mine || !LF.isPublic(it) || it.status === 'Claimed' || it.status === 'Disposed' || it.status === 'Closed') return null;
+    return it.kind === 'lost'
+      ? { kind: 'notice', label: 'I found this', done: 'Found notice sent', cls: 'btn-teal' }
+      : { kind: 'claim', label: 'Request to claim', done: 'Claim requested', cls: 'btn-outline' };
+  }
+  function alreadySent(it, act) {
+    return LF.getRecords(act.kind).some(function (r) { return r.refCase === it.caseNo && r.ownerId === user.id; });
+  }
+  function actionBtn(it) {
+    var act = actionFor(it);
+    if (!act) return '';
+    var sent = alreadySent(it, act);
+    return '<button type="button" class="btn ' + act.cls + '" data-act="' + items.indexOf(it) + '"' + (sent ? ' disabled' : '') + '>' +
+      (sent ? act.done : act.label) + '</button>';
+  }
+
+  /* ---------- Filters + list ---------- */
+  var fCategory = $('fCategory'), fLocation = $('fLocation'), fSearch = $('fSearch');
+  LF.fillSelect(fCategory, 'All categories', LF.CATEGORIES);
+  LF.fillSelect(fLocation, 'All locations', LF.LOCATIONS);
+
+  var q0 = new URLSearchParams(window.location.search).get('q');
+  if (q0) fSearch.value = q0;
+
+  function render() {
+    var cat = fCategory.value, loc = fLocation.value, q = fSearch.value.trim().toLowerCase();
+    var list = items.filter(function (it) {
+      if (cat && it.category !== cat) return false;
+      if (loc && it.location !== loc) return false;
+      if (q) {
+        var hay = [it.itemName, it.caseNo, it.description, LF.catLabel(it), LF.locLabel(it)].join(' ').toLowerCase();
+        // searching a case number also shows its matches
+        var matchHit = it.matches.some(function (m) { return m.caseNo.toLowerCase() === q; });
+        if (hay.indexOf(q) === -1 && !matchHit) return false;
+      }
+      return true;
+    }).sort(function (a, b) {
+      return (a.status === 'Disposed' || a.status === 'Closed') - (b.status === 'Disposed' || b.status === 'Closed') ||
+             (b.matches.length > 0) - (a.matches.length > 0) ||
+             String(b.date || '').localeCompare(String(a.date || ''));
+    });
+
+    var filtered = cat || loc || q;
+    $('resultCount').innerHTML = (list.length === 1 ? '1 item' : list.length + ' items') +
+      (filtered ? '<button type="button" class="link-btn" id="clearBtn">Clear filters</button>' : '');
+
+    if (!list.length) {
+      $('results').innerHTML = items.length
+        ? '<div class="empty">No items match these filters. Try a different category, location, or search word.</div>'
+        : '<div class="empty">No items have been posted yet. Reports appear here once staff approve and post them.<br>' +
+          '<a href="REPORT.html">Report a lost item</a> or <a href="FOUND.html">report a found item</a>.</div>';
+    } else {
+      $('results').innerHTML = list.map(function (it) {
+        var disposed = it.status === 'Disposed' || it.status === 'Closed';
+        var idx = items.indexOf(it);
+        return '<article class="item-card' + (disposed ? ' is-muted' : '') + '">' +
+          '<div class="item-title">' + esc(it.itemName) + ' <small>#' + esc(it.caseNo) + '</small></div>' +
+          '<div class="item-meta"><span class="type-' + it.kind + '">' + (it.kind === 'lost' ? 'Lost' : 'Found') + '</span> • ' +
+            esc(LF.locLabel(it)) + ' • ' + fmtDate(it.date) + ' • ' + esc(LF.catLabel(it)) + '</div>' +
+          '<div class="item-status">' + statusPill(it) +
+            (it.mine ? '<span class="pill pill-blue">Your report</span>' : '') +
+            (!disposed && it.matches.length ? '<span class="pill pill-teal">' +
+              (it.matches.length > 1 ? it.matches.length + ' possible matches' : 'Possible match') + '</span>' : '') +
+          '</div>' +
+          '<div class="item-actions">' + actionBtn(it) +
+            '<button type="button" class="btn btn-primary" data-view="' + idx + '">View</button></div>' +
+        '</article>';
+      }).join('');
+    }
+    var clear = $('clearBtn');
+    if (clear) clear.addEventListener('click', function () {
+      fCategory.value = ''; fLocation.value = ''; fSearch.value = '';
+      [fCategory, fLocation].forEach(LF.markEmpty);
+      history.replaceState(null, '', 'SEEK.html');
+      render();
+    });
+  }
+
+  $('filters').addEventListener('submit', function (e) { e.preventDefault(); fSearch.blur(); render(); });
+  [fCategory, fLocation].forEach(function (s) { s.addEventListener('change', function () { LF.markEmpty(s); render(); }); });
+  fSearch.addEventListener('search', render);
+
+  function onClick(e) {
+    var v = e.target.closest('[data-view]');
+    if (v) return openDetails(items[+v.getAttribute('data-view')]);
+    var a = e.target.closest('[data-act]');
+    if (a && !a.disabled) openRequest(items[+a.getAttribute('data-act')]);
+  }
+  $('results').addEventListener('click', onClick);
+
+  /* ---------- Modal ---------- */
+  var modal = $('modal'), body = $('modalBody');
+  function show() { LF.openModal(modal); $('modalClose').focus(); }
+  function hide() { LF.closeModal(modal); }
+  $('modalClose').addEventListener('click', hide);
+  modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+  body.addEventListener('click', function (e) {
+    if (e.target.closest('.js-cancel')) return hide();
+    onClick(e);
+  });
+
+  function openDetails(it) {
+    var other = it.kind === 'lost' ? 'found' : 'lost';
+    body.innerHTML =
+      '<h3 id="mTitle">' + esc(it.itemName) + '</h3>' +
+      '<p class="case">#' + esc(it.caseNo) + ' • ' + (it.kind === 'lost' ? 'Lost' : 'Found') + ' item' + (it.mine ? ' • Your report' : '') + '</p>' +
+      LF.photoGalleryHTML(LF.findRecord(it.kind, it.id) || it) +
+      '<dl class="details">' +
+        '<dt>Status</dt><dd>' + statusPill(it) + '</dd>' +
+        '<dt>Category</dt><dd>' + esc(LF.catLabel(it)) + '</dd>' +
+        '<dt>Location</dt><dd>' + esc(LF.locLabel(it)) + '</dd>' +
+        '<dt>Date ' + (it.kind === 'lost' ? 'lost' : 'found') + '</dt><dd>' + fmtDate(it.date) + '</dd>' +
+        (it.kind === 'found' && LF.isMonitored(it) ? '<dt>Kept until</dt><dd>' + fmtDate(LF.holdInfo(it).until) +
+          ' <small style="color:var(--muted)">(' + Math.max(0, LF.holdInfo(it).left) + ' days left to claim)</small></dd>' : '') +
+        '<dt>Contact</dt><dd>' + (it.mine ? esc(it.mobile) : LF.maskMobile(it.mobile)) + '</dd>' +
+        '<dt>Description</dt><dd>' + (esc(it.description) || '—') + '</dd>' +
+      '</dl>' +
+      '<h4>Possible matches</h4>' +
+      (it.matches.length
+        ? '<div class="sub-list">' + it.matches.map(function (m) {
+            return '<button type="button" class="sub-item" data-view="' + items.indexOf(m) + '"><div>' +
+              esc(m.itemName) + ' #' + esc(m.caseNo) + '<small>' + (m.kind === 'lost' ? 'Lost' : 'Found') + ' • ' +
+              esc(LF.locLabel(m)) + ' • ' + fmtDate(m.date) + '</small></div><span class="go">View</span></button>';
+          }).join('') + '</div>'
+        : '<p>No ' + other + ' reports match this item yet. Check again later.</p>') +
+      LF.surrenderBoxHTML(it) +
+      (!it.mine && it.ownerId ? '<div class="msg-row">' + LF.messageBtnHTML(it.ownerId, it.caseNo,
+        it.kind === 'lost' ? 'Message the owner' : 'Message the finder', 'btn btn-outline btn-block') + '</div>' : '') +
+      LF.reportCommentsHTML(LF.findRecord(it.kind, it.id) || it) +
+      (actionFor(it) ? '<div class="modal-actions">' + actionBtn(it) + '</div>' : '');
+    show();
+  }
+
+  function openRequest(it) {
+    var act = actionFor(it);
+    if (!act || alreadySent(it, act)) return;
+    var isNotice = act.kind === 'notice';
+    var p = user.profile || {};
+
+    body.innerHTML =
+      '<h3 id="mTitle">' + (isNotice ? 'I found this item' : 'Request to claim') + '</h3>' +
+      '<p class="modal-lead">' + (isNotice
+        ? 'Tell the owner you have their item. The Lost and Found office will check your details and contact both of you.'
+        : 'Prove this item is yours. The Lost and Found office will review your request before you pick it up.') + '</p>' +
+      '<div class="sub-item" style="margin-bottom:18px;background:var(--soft);border:none"><div>' + esc(it.itemName) + ' #' + esc(it.caseNo) +
+        '<small>' + (it.kind === 'lost' ? 'Lost' : 'Found') + ' • ' + esc(LF.locLabel(it)) + ' • ' + fmtDate(it.date) + '</small></div></div>' +
+      '<form id="reqForm" novalidate>' +
+        '<div class="grid g-2">' +
+          '<div class="field"><label for="rName">Your full name</label><input type="text" id="rName" autocomplete="name" value="' + esc(LF.displayName(user)) + '"></div>' +
+          '<div class="field"><label for="rMobile">Mobile number</label><input type="tel" id="rMobile" inputmode="numeric" maxlength="11" placeholder="09XXXXXXXXX" value="' + esc(p.mobile || '') + '"></div>' +
+        '</div>' +
+        (isNotice ?
+        '<div class="field" style="margin-bottom:14px"><label for="rWhere">Where is the item now?</label><div class="select"><select id="rWhere">' +
+          '<option value="">Choose one</option>' +
+          '<option>I will surrender it to the Lost and Found office</option>' +
+          '<option>Already surrendered to the Lost and Found office</option>' +
+          '<option>With me, contact me to arrange the return</option>' +
+        '</select></div></div>' : '') +
+        '<div class="field" style="margin-bottom:14px"><label for="rMessage">' + (isNotice ? 'Describe the item you found' : 'Proof of ownership') + '</label>' +
+          '<textarea id="rMessage" placeholder="' + (isNotice
+            ? 'Where and when you found it, what it looks like, anything inside it.'
+            : 'Details only the owner would know: contents, marks, scratches, lock screen, serial number.') + '"></textarea></div>' +
+        '<span class="field-label">' + (isNotice ? 'Photo of the item' : 'Proof photo') + ' <span>(optional)</span></span>' +
+        '<div class="photo-picker">' +
+          '<div class="photo-preview" id="rPreview">' + LF.photoPlaceholder() +
+            '<button type="button" class="remove-photo" id="rRemove" aria-label="Remove photo">&times;</button></div>' +
+          '<div class="photo-controls"><label class="btn btn-ghost" for="rPhoto">Add photo</label>' +
+            '<input type="file" id="rPhoto" accept="image/*" hidden></div>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+          '<button type="button" class="btn btn-ghost js-cancel">Cancel</button>' +
+          '<button type="submit" class="btn ' + (isNotice ? 'btn-teal' : 'btn-primary') + '">' +
+            (isNotice ? 'Send found notice' : 'Send claim request') + '</button>' +
+        '</div>' +
+      '</form>';
+    show();
+
+    var rMobile = $('rMobile');
+    LF.digitsOnly(rMobile, 11);
+    if ($('rWhere')) { LF.markEmpty($('rWhere')); $('rWhere').addEventListener('change', function () { LF.markEmpty(this); }); }
+    var photo = LF.photoPicker($('rPreview'), $('rPhoto'), $('rRemove'));
+
+    var RULES = {
+      rName:    function (v) { return v.length >= 2 || 'Enter your full name.'; },
+      rMobile:  function (v) { return /^09\d{9}$/.test(v) || 'Use 11 digits starting with 09.'; },
+      rWhere:   function (v) { return !!v || 'Choose where the item is now.'; },
+      rMessage: function (v) { return v.length >= 10 || 'Write at least 10 characters.'; }
+    };
+    LF.liveValidate(RULES, $);
+
+    var sending = false;
+    $('reqForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (sending) return;
+      var bad = LF.validate(RULES, $);
+      if (bad) { bad.focus(); return; }
+      sending = true;
+      var sBtn = this.querySelector('button[type=submit]'); sBtn.disabled = true;
+
+      var rec = LF.addRecord(act.kind, {
+        refCase: it.caseNo,
+        refKind: it.kind,
+        itemName: it.itemName,
+        category: it.category, categoryDetail: it.categoryDetail || '',
+        location: it.location, locationDetail: it.locationDetail || '',
+        name: $('rName').value.trim(),
+        mobile: rMobile.value,
+        where: isNotice ? $('rWhere').value : '',
+        message: $('rMessage').value.trim(),
+        photo: photo.get(),
+        status: 'Pending Review'
+      });
+      if (!rec) { sending = false; sBtn.disabled = false; LF.toast(LF.STORAGE_FULL, true); return; }
+
+      hide();
+      render();
+      LF.toast(isNotice ? 'Found notice sent. The office will contact the owner.'
+                        : 'Claim request sent. The office will review it.');
+    });
+  }
+
+  loadItems();
+  render();
+  // Opened from a notification (?q=case number): show that item right away.
+  if (q0) { var hit = items.find(function (it) { return it.caseNo === q0; }); if (hit) openDetails(hit); }
+})();
+</script>
+</body>
+</html>

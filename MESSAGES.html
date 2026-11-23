@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Messages | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .page.msg-page { max-width: 1100px; }
+  .msg-wrap { display: grid; grid-template-columns: 330px minmax(0, 1fr); padding: 0; overflow: hidden;
+    height: calc(100vh - 150px); height: calc(100dvh - 150px); min-height: 460px; }
+  /* List */
+  .msg-list { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .msg-list-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+  .msg-list-head h2 { font-size: 21px; color: var(--navy); margin-bottom: 10px; }
+  .msg-list-head .btn { width: 100%; }
+  .convs { overflow-y: auto; flex: 1; }
+  .conv { display: flex; gap: 12px; align-items: center; width: 100%; padding: 12px 16px; background: none; border: none;
+    border-bottom: 1px solid var(--border); text-align: left; cursor: pointer; font: inherit; color: inherit; }
+  .conv:hover { background: #f5f8fd; }
+  .conv.active { background: #e6eefa; }
+  .conv .c-main { flex: 1; min-width: 0; }
+  .conv b { display: block; color: var(--navy); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv small { display: block; color: var(--muted); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv.unread b, .conv.unread small { color: var(--text); font-weight: 700; }
+  .conv .c-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .conv time { font-size: 12px; color: var(--muted); }
+  .conv .dot { background: var(--red); color: #fff; border-radius: 999px; font-size: 11.5px; font-weight: 700; padding: 0 7px; line-height: 19px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+    background: #dde7f5 center/cover no-repeat; color: var(--navy); font-weight: 700; font-size: 15px; }
+  .avatar.office { background: var(--navy); color: #fff; }
+  .convs-empty { padding: 30px 18px; color: var(--muted); text-align: center; font-size: 14.5px; }
+  /* Chat */
+  .msg-chat { display: flex; flex-direction: column; min-height: 0; background: #f7f9fc; }
+  .chat-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--border); }
+  .chat-head b { display: block; color: var(--navy); font-size: 16px; }
+  .chat-head small { color: var(--muted); font-size: 13px; }
+  .chat-back { display: none; width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--soft); font-size: 20px; cursor: pointer; color: var(--navy); }
+  .chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .chat-empty { margin: auto; text-align: center; color: var(--muted); max-width: 340px; font-size: 14.5px; }
+  .chat-empty svg { width: 46px; height: 46px; display: block; margin: 0 auto 8px; stroke: var(--placeholder); }
+  .b-row { display: flex; flex-direction: column; align-items: flex-start; max-width: 78%; }
+  .b-row.me { align-self: flex-end; align-items: flex-end; }
+  .b-by { font-size: 12px; color: var(--muted); margin: 6px 4px 2px; }
+  .bubble { background: #fff; border: 1px solid var(--border); border-radius: 18px 18px 18px 6px; padding: 9px 13px;
+    font-size: 15px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+  .b-row.me .bubble { background: var(--blue); border-color: var(--blue); color: #fff; border-radius: 18px 18px 6px 18px; }
+  .b-meta { font-size: 11.5px; color: var(--muted); margin: 2px 6px 4px; }
+  .b-case { display: inline-block; font-size: 12px; font-weight: 600; background: #e6eefa; color: #1d4f9a; border-radius: 999px;
+    padding: 2px 9px; margin: 6px 0 2px; text-decoration: none; }
+  .day-sep { align-self: center; font-size: 12px; color: var(--muted); background: #eaeef5; border-radius: 999px; padding: 2px 10px; margin: 10px 0 4px; }
+  .chat-about { padding: 8px 16px; font-size: 13.5px; background: #eef5ff; border-bottom: 1px solid #c9dcf5; color: #1d4f9a; }
+  .chat-form { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; background: #fff; border-top: 1px solid var(--border);
+    padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .chat-form textarea { flex: 1; min-height: 44px; max-height: 140px; resize: none; border-radius: 22px; padding: 11px 16px; }
+  .chat-form .btn { border-radius: 22px; min-height: 44px; }
+  .chat-closed { padding: 14px 16px; background: #fff; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
+  .chat-none { flex: 1; display: grid; place-items: center; color: var(--muted); padding: 20px; text-align: center; }
+  /* Photos, edit and delete */
+  .b-line { display: flex; align-items: center; gap: 4px; max-width: 100%; }
+  .b-row.me .b-line { flex-direction: row-reverse; }
+  .b-more { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; border: none; background: none; color: var(--muted);
+    font-size: 18px; line-height: 1; cursor: pointer; opacity: .55; }
+  .b-more:hover, .b-more:focus-visible, .b-row.menu-open .b-more { opacity: 1; background: #e9eef6; }
+  .b-menu { display: none; gap: 6px; margin: 4px 2px 2px; }
+  .b-row.menu-open .b-menu { display: flex; }
+  .b-menu button { border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 5px 12px; font: 600 13px var(--font); cursor: pointer; color: var(--navy); }
+  .b-menu button.del { color: var(--red); }
+  .bubble.deleted { background: none !important; border: 1px dashed var(--border) !important; color: var(--muted) !important; font-style: italic; }
+  .b-photo { display: block; border: none; padding: 0; margin: 0 0 4px; background: none; cursor: zoom-in; border-radius: 14px; overflow: hidden; max-width: 240px; }
+  .b-photo img { display: block; width: 100%; max-height: 260px; object-fit: cover; }
+  .bubble.has-photo { padding: 4px; }
+  .bubble.has-photo .b-text { padding: 5px 9px 4px; }
+  .attach-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--border); background: #fff;
+    color: var(--navy); cursor: pointer; display: grid; place-items: center; }
+  .attach-btn svg { width: 21px; height: 21px; }
+  .attach-btn:hover { background: var(--soft); }
+  .chat-extra { background: #fff; border-top: 1px solid var(--border); padding: 8px 12px 0; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .chat-extra .thumb { width: 54px; height: 54px; border-radius: 10px; background: center/cover no-repeat; flex-shrink: 0; }
+  .chat-extra .grow { flex: 1; min-width: 0; color: var(--muted); }
+  .chat-extra b { color: var(--navy); }
+  .chat-extra button { border: none; background: var(--soft); border-radius: 999px; padding: 6px 12px; font: 600 13px var(--font); cursor: pointer; }
+  @media (max-width: 800px) {
+    .page.msg-page { padding: 0; }
+    .msg-wrap { grid-template-columns: minmax(0, 1fr); border-radius: 0; border: none; height: calc(100vh - 64px); height: calc(100dvh - 64px); min-height: 0; }
+    .msg-chat { display: none; }
+    .msg-wrap.show-chat .msg-list { display: none; }
+    .msg-wrap.show-chat .msg-chat { display: flex; }
+    .chat-back { display: grid; place-items: center; }
+    .b-row { max-width: 88%; }
+    .page.msg-page + .footer, body.msg-body .footer { display: none; }
+  }
+</style>
+</head>
+<body class="msg-body">
+
+  <main class="page msg-page">
+    <div class="card msg-wrap" id="wrap">
+      <aside class="msg-list" aria-label="Conversations">
+        <div class="msg-list-head">
+          <h2>Messages</h2>
+          <button type="button" class="btn btn-primary btn-sm" id="toOffice">Message the Lost and Found Office</button>
+          <p class="hint" id="officeHint" hidden style="margin:0">Messages from users to the office show here. Everyone on the staff team shares this inbox.</p>
+        </div>
+        <div class="convs" id="convs"><p class="convs-empty">Loading…</p></div>
+      </aside>
+
+      <section class="msg-chat" aria-label="Conversation" id="chat">
+        <div class="chat-none" id="chatNone">Choose a conversation.</div>
+        <div class="chat-head" id="chatHead" hidden>
+          <button type="button" class="chat-back" id="back" aria-label="Back to conversations">&larr;</button>
+          <div class="avatar" id="chatAvatar"></div>
+          <div><b id="chatName"></b><small id="chatSub"></small></div>
+        </div>
+        <div class="chat-about" id="chatAbout" hidden></div>
+        <div class="chat-body" id="chatBody" hidden aria-live="polite"></div>
+        <div class="chat-extra" id="chatPhotoBar" hidden>
+          <div class="thumb" id="chatPhotoThumb"></div>
+          <span class="grow">Photo ready to send. Add a message if you like.</span>
+          <button type="button" id="chatPhotoRemove">Remove</button>
+        </div>
+        <div class="chat-extra" id="chatEditBar" hidden>
+          <span class="grow"><b>Editing message</b> • Change the text, then tap Save.</span>
+          <button type="button" id="chatEditCancel">Cancel</button>
+        </div>
+        <form class="chat-form" id="chatForm" hidden novalidate>
+          <label class="attach-btn" for="chatPhoto" id="attachBtn" title="Send a photo" aria-label="Send a photo" tabindex="0" role="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
+          </label>
+          <input type="file" id="chatPhoto" accept="image/*" hidden>
+          <label class="sr-only" for="chatText">Message</label>
+          <textarea id="chatText" rows="1" maxlength="2000" placeholder="Write a message…"></textarea>
+          <button type="submit" class="btn btn-primary" id="sendBtn">Send</button>
+        </form>
+        <div class="chat-closed" id="chatClosed" hidden></div>
+      </section>
+    </div>
+  </main>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+  var user = LF.requireLogin();
+  if (!user) return;
+  LF.mountShell({ title: 'Messages', active: 'MESSAGES.html' });
+
+  var esc = LF.esc;
+  function $(id) { return document.getElementById(id); }
+  var office = LF.isAdmin(user) || LF.isStaff(user);
+  var qs = new URLSearchParams(location.search);
+  var cur = null;          // { conv, with, lastId, caseNo, canWrite }
+  var convs = [];
+
+  if (office) { $('toOffice').hidden = true; $('officeHint').hidden = false; }
+
+  function initials(n) { return String(n || '?').split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase(); }
+  function avatarHTML(w, el) {
+    if (w.role === 'office') { el.className = 'avatar office'; el.style.backgroundImage = ''; el.textContent = 'LF'; return; }
+    el.className = 'avatar';
+    el.style.backgroundImage = w.photo ? 'url("' + w.photo + '")' : '';
+    el.textContent = w.photo ? '' : initials(w.name);
+  }
+  function whenShort(iso) {
+    var d = new Date(iso), now = new Date();
+    if (d.toDateString() === now.toDateString()) return LF.fmtTime(iso);
+    var y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+  }
+  function roleText(w) {
+    if (w.role === 'office') return 'Admin and staff answer here';
+    if (w.gone) return 'Account deleted';
+    return (w.role === 'admin' ? 'Admin' : w.role === 'staff' ? 'Staff' : 'Community user') + (w.code ? ' • ' + w.code : '');
+  }
+
+  /* ---------- Conversation list ---------- */
+  function loadInbox() {
+    return LF.apiAsync('messages.php', { action: 'inbox' }).then(function (r) {
+      if (!r || !r.ok) { if (!convs.length) $('convs').innerHTML = '<p class="convs-empty">' + esc((r && r.error) || 'Can\'t load messages right now.') + '</p>'; return; }
+      convs = r.convs;
+      var total = 0;
+      convs.forEach(function (c) { total += c.unread; });
+      LF.setChatBadge(total);
+      renderList();
+    });
+  }
+  function renderList() {
+    if (!convs.length) {
+      $('convs').innerHTML = '<p class="convs-empty">' + (office
+        ? 'No messages yet. When users message the office, they show up here. You can also message a user from their account or report.'
+        : 'No messages yet. Message the office above, or tap "Message" on a report to talk with its owner.') + '</p>';
+      return;
+    }
+    $('convs').innerHTML = convs.map(function (c) {
+      var w = c.with, last = c.last;
+      return '<button type="button" class="conv' + (c.unread ? ' unread' : '') + (cur && cur.conv === c.conv ? ' active' : '') + '" data-conv="' + esc(c.conv) + '">' +
+        '<div class="avatar' + (w.role === 'office' ? ' office' : '') + '"' + (w.photo ? ' style="background-image:url(\'' + w.photo + '\')"' : '') + '>' +
+          (w.photo ? '' : w.role === 'office' ? 'LF' : esc(initials(w.name))) + '</div>' +
+        '<div class="c-main"><b>' + esc(w.name) + '</b><small>' + (last.mine ? 'You: ' : '') +
+          (last.deleted ? '<i>Message deleted</i>' : esc(last.text || (last.hasPhoto ? '📷 Photo' : ''))) + '</small></div>' +
+        '<div class="c-side"><time>' + whenShort(last.at) + '</time>' + (c.unread ? '<span class="dot">' + c.unread + '</span>' : '') + '</div></button>';
+    }).join('');
+  }
+  $('convs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-conv]');
+    if (b) openThread({ conv: b.getAttribute('data-conv') });
+  });
+
+  /* ---------- One conversation ---------- */
+  function isMine(m) {
+    // Admin/staff see every office reply on their side, whoever on the team wrote it.
+    if (office && cur.conv.indexOf('o:') === 0) return m.from !== cur.with.id;
+    return m.mine;
+  }
+  function bubbleHTML(m, prev) {
+    var html = '', day = new Date(m.at).toDateString();
+    if (!prev || new Date(prev.at).toDateString() !== day) html += '<div class="day-sep">' + LF.fmtDate(m.at) + '</div>';
+    var me = isMine(m), showBy = m.by && (!prev || prev.by !== m.by || new Date(prev.at).toDateString() !== day);
+    var own = m.from === user.id && !m.deleted && cur.canEdit;     // only your own messages can be edited or deleted
+    var inner = m.deleted ? '<div class="bubble deleted">Message deleted</div>'
+      : '<div class="bubble' + (m.photo ? ' has-photo' : '') + '">' +
+          (m.photo ? '<button type="button" class="b-photo" data-view="' + m.id + '" aria-label="Open photo"><img src="' + m.photo + '" alt="Photo"></button>' : '') +
+          (m.text ? (m.photo ? '<div class="b-text">' + esc(m.text) + '</div>' : esc(m.text)) : '') + '</div>';
+    html += '<div class="b-row' + (me ? ' me' : '') + '" data-mid="' + m.id + '">' +
+      (showBy ? '<span class="b-by">' + esc(m.by) + '</span>' : '') +
+      (m.caseNo ? '<a class="b-case" href="' + (office ? (LF.isAdmin(user) ? 'ADMIN.html?q=' : 'STAFF.html?q=') : 'SEEK.html?q=') + encodeURIComponent(m.caseNo) + '">About report #' + esc(m.caseNo) + '</a>' : '') +
+      '<div class="b-line">' + inner +
+        (own ? '<button type="button" class="b-more" data-more="' + m.id + '" aria-label="Message options">&#8943;</button>' : '') + '</div>' +
+      (own ? '<div class="b-menu">' + (m.text ? '<button type="button" data-edit="' + m.id + '">Edit</button>' : '') +
+        '<button type="button" class="del" data-del="' + m.id + '">Delete</button></div>' : '') +
+      '<span class="b-meta">' + LF.fmtTime(m.at) + (m.edited ? ' • Edited' : '') + (me && !office && m.read ? ' • Seen' : '') + '</span></div>';
+    return html;
+  }
+  function renderMessages(list, append) {
+    var body = $('chatBody');
+    var nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+    if (!append) {
+      cur.msgs = list;
+      body.innerHTML = list.length ? list.map(function (m, i) { return bubbleHTML(m, list[i - 1]); }).join('')
+        : '<div class="chat-empty"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.8-.8L3 21l1.9-5A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg>' +
+          (cur.with.role === 'office' ? 'Ask the Lost and Found Office anything. The admin and staff will reply here.' : 'Say hello. Keep it about the item, and don\'t share passwords or ID numbers.') + '</div>';
+      body.scrollTop = body.scrollHeight;
+      return;
+    }
+    if (!list.length) return;
+    if (!cur.msgs.length) body.innerHTML = '';
+    list.forEach(function (m) { body.insertAdjacentHTML('beforeend', bubbleHTML(m, cur.msgs[cur.msgs.length - 1])); cur.msgs.push(m); });
+    if (nearBottom || list.some(isMine)) body.scrollTop = body.scrollHeight;
+  }
+
+  // Re-draw the open chat after an edit or delete, keeping the scroll position.
+  function rerender() {
+    var b = $('chatBody'), top = b.scrollTop;
+    renderMessages(cur.msgs, false);
+    b.scrollTop = top;
+  }
+  function applyChanges(list) {
+    if (!list || !list.length || !cur) return;
+    list.forEach(function (m) { var i = cur.msgs.findIndex(function (x) { return x.id === m.id; }); if (i >= 0) cur.msgs[i] = m; });
+    rerender();
+  }
+
+  function openThread(opts) {
+    var req = { action: 'thread' };
+    if (opts.conv) { req.conv = opts.conv; req.caseNo = opts.caseNo || ''; } else { req.to = opts.to; req.caseNo = opts.caseNo || ''; }
+    return LF.apiAsync('messages.php', req).then(function (r) {
+      if (!r || !r.ok) { LF.toast((r && r.error) || 'Can\'t open this conversation.', true); return; }
+      cancelEdit(); setPhoto(null);
+      cur = { conv: r.conv, with: r.with, caseNo: opts.caseNo || '', canWrite: r.canWrite, msgs: [], canEdit: !!r.canEdit, now: r.now ? r.now - 1 : 0,
+              lastId: r.messages.length ? r.messages[r.messages.length - 1].id : 0 };
+      $('attachBtn').hidden = !r.canEdit;
+      $('chatNone').hidden = true;
+      ['chatHead', 'chatBody'].forEach(function (id) { $(id).hidden = false; });
+      avatarHTML(r.with, $('chatAvatar'));
+      $('chatName').textContent = r.with.name;
+      $('chatSub').textContent = roleText(r.with);
+      $('chatAbout').hidden = !cur.caseNo;
+      $('chatAbout').textContent = cur.caseNo ? 'About report #' + cur.caseNo + '. Your first message will be linked to it.' : '';
+      $('chatForm').hidden = !r.canWrite;
+      $('chatClosed').hidden = r.canWrite;
+      $('chatClosed').textContent = r.why || '';
+      renderMessages(r.messages, false);
+      $('wrap').classList.add('show-chat');
+      history.replaceState(null, '', 'MESSAGES.html?conv=' + encodeURIComponent(cur.conv) +
+        (cur.caseNo && !r.messages.length ? '&case=' + encodeURIComponent(cur.caseNo) : ''));
+      if (r.canWrite && window.matchMedia('(min-width: 801px)').matches) $('chatText').focus();
+      loadInbox();
+    });
+  }
+
+  $('back').addEventListener('click', function () { $('wrap').classList.remove('show-chat'); cur = null; renderList(); history.replaceState(null, '', 'MESSAGES.html'); });
+  $('toOffice').addEventListener('click', function () { openThread({ to: 'OFFICE' }); });
+
+  /* ---------- Send ---------- */
+  var ta = $('chatText');
+  function grow() { ta.style.height = 'auto'; ta.style.height = Math.min(140, ta.scrollHeight) + 'px'; }
+  ta.addEventListener('input', grow);
+  ta.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(min-width: 801px)').matches) { e.preventDefault(); $('chatForm').requestSubmit(); }
+  });
+  /* Photo to send */
+  var pendingPhoto = null;
+  function setPhoto(d) {
+    pendingPhoto = d || null;
+    $('chatPhotoBar').hidden = !pendingPhoto;
+    $('chatPhotoThumb').style.backgroundImage = pendingPhoto ? 'url("' + pendingPhoto + '")' : '';
+  }
+  $('chatPhoto').addEventListener('change', function () {
+    var f = this.files[0]; this.value = '';
+    if (!f) return;
+    if (editing) cancelEdit();
+    LF.readPhoto(f, 1280).then(function (d) { setPhoto(d); ta.focus(); }).catch(function (err) { LF.toast(err.message, true); });
+  });
+  $('chatPhotoRemove').addEventListener('click', function () { setPhoto(null); });
+  $('attachBtn').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('chatPhoto').click(); } });
+
+  /* Edit */
+  var editing = null;      // message being edited
+  function startEdit(m) {
+    setPhoto(null);
+    editing = m;
+    ta.value = m.text; grow(); ta.focus();
+    $('chatEditBar').hidden = false;
+    $('sendBtn').textContent = 'Save';
+  }
+  function cancelEdit() {
+    if (!editing) return;
+    editing = null; ta.value = ''; grow();
+    $('chatEditBar').hidden = true;
+    $('sendBtn').textContent = 'Send';
+  }
+  $('chatEditCancel').addEventListener('click', cancelEdit);
+
+  $('chatBody').addEventListener('click', function (e) {
+    var v = e.target.closest('[data-view]');
+    if (v) { var pm = cur.msgs.find(function (x) { return x.id === +v.getAttribute('data-view'); }); if (pm && pm.photo) LF.openPhotoViewer([pm.photo], 0); return; }
+    var more = e.target.closest('[data-more]');
+    if (more) {
+      var row = more.closest('.b-row'), open = row.classList.contains('menu-open');
+      $('chatBody').querySelectorAll('.menu-open').forEach(function (x) { x.classList.remove('menu-open'); });
+      row.classList.toggle('menu-open', !open);
+      return;
+    }
+    var ed = e.target.closest('[data-edit]');
+    if (ed) {
+      var m = cur.msgs.find(function (x) { return x.id === +ed.getAttribute('data-edit'); });
+      ed.closest('.b-row').classList.remove('menu-open');
+      if (m) startEdit(m);
+      return;
+    }
+    var del = e.target.closest('[data-del]');
+    if (del) {
+      var id = +del.getAttribute('data-del');
+      del.closest('.b-row').classList.remove('menu-open');
+      LF.confirm({ title: 'Delete this message?', message: 'It will show as "Message deleted" for both of you.', confirmText: 'Delete' }).then(function (yes) {
+        if (!yes) return;
+        LF.apiAsync('messages.php', { action: 'delete', id: id }).then(function (r) {
+          if (!r || !r.ok) { LF.toast((r && r.error) || 'Couldn\'t delete. Check your connection.', true); return; }
+          if (editing && editing.id === id) cancelEdit();
+          applyChanges([r.message]); loadInbox();
+        });
+      });
+    }
+  });
+
+  $('chatForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = ta.value.trim();
+    if (!cur || (!text && !pendingPhoto && !editing)) return;
+    $('sendBtn').disabled = true;
+    if (editing) {
+      LF.apiAsync('messages.php', { action: 'edit', id: editing.id, text: text }).then(function (r) {
+        $('sendBtn').disabled = false;
+        if (!r || !r.ok) { LF.toast((r && r.error) || 'Couldn\'t save. Check your connection.', true); return; }
+        cancelEdit();
+        applyChanges([r.message]); loadInbox();
+      });
+      return;
+    }
+    var req = { action: 'send', conv: cur.conv, text: text, caseNo: cur.msgs.length ? '' : cur.caseNo };
+    if (pendingPhoto) req.photo = pendingPhoto;
+    LF.apiAsync('messages.php', req).then(function (r) {
+      $('sendBtn').disabled = false;
+      if (!r || !r.ok) { LF.toast((r && r.error) || 'Message not sent. Check your connection.', true); return; }
+      ta.value = ''; grow(); setPhoto(null);
+      cur.lastId = r.message.id;
+      renderMessages([r.message], true);
+      $('chatAbout').hidden = true;
+      loadInbox();
+    });
+  });
+
+  /* ---------- Check for new messages ---------- */
+  setInterval(function () {
+    if (document.hidden) return;
+    if (cur) {
+      LF.apiAsync('messages.php', { action: 'thread', conv: cur.conv, after: cur.lastId, since: cur.now }).then(function (r) {
+        if (!r || !r.ok || !cur || r.conv !== cur.conv) return;
+        if (r.now) cur.now = r.now - 1;
+        applyChanges(r.changed);
+        if (!r.messages.length) return;
+        cur.lastId = r.messages[r.messages.length - 1].id;
+        renderMessages(r.messages, true);
+        loadInbox();
+      });
+    } else {
+      loadInbox();
+    }
+  }, 4000);
+
+  /* ---------- Start ---------- */
+  loadInbox().then(function () {
+    if (qs.get('conv')) openThread({ conv: qs.get('conv'), caseNo: qs.get('case') || '' });
+    else if (qs.get('to')) openThread({ to: qs.get('to'), caseNo: qs.get('case') || '' });
+    else if (window.matchMedia('(min-width: 801px)').matches && convs.length) openThread({ conv: convs[0].conv });
+  });
+})();
+</script>
+</body>
+</html>

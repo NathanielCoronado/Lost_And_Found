@@ -1,0 +1,10 @@
+# Secrets
+private/config.php
+.env
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+# Server setup script (delete after first run)
+setup.php

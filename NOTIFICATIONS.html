@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Notifications | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .page.notes-page { max-width: 820px; }
+  .notes-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+  .notes-head .page-title { margin-bottom: 2px; }
+  .notes-head p { color: var(--muted); }
+  .notes-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--soft); }
+  .seg button { border: none; background: none; border-radius: 9px; padding: 0 16px; min-height: 38px;
+    font: 600 14px var(--font); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .seg button[aria-pressed="true"] { background: #fff; color: var(--navy); box-shadow: 0 1px 3px rgba(23, 52, 98, .12); }
+  .seg .count { background: var(--red); color: #fff; border-radius: 999px; font-size: 12px; padding: 0 7px; line-height: 18px; }
+  .notes-card { padding: 0; overflow: hidden; }
+  .bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .group-title { font-size: 13px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--muted);
+    padding: 14px 16px 4px; }
+  .notes-card .note-list { padding: 0 6px 6px; margin: 0; }
+  .notes-empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .notes-empty svg { width: 46px; height: 46px; display: block; margin: 0 auto 10px; stroke: var(--placeholder); }
+  .notes-empty b { display: block; color: var(--navy); font-size: 17px; margin-bottom: 4px; }
+  @media (max-width: 520px) {
+    .notes-bar { padding: 10px 12px; }
+    .seg { width: 100%; }
+    .seg button { flex: 1; justify-content: center; }
+    .bar-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    .bar-actions .btn { white-space: nowrap; font-size: 13.5px; padding: 0 8px; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="page notes-page">
+    <div class="notes-head">
+      <div>
+        <h2 class="page-title">Notifications</h2>
+        <p id="notesSub"></p>
+      </div>
+    </div>
+
+    <section class="card notes-card" aria-label="All notifications">
+      <div class="notes-bar">
+        <div class="seg" role="group" aria-label="Show">
+          <button type="button" data-show="all" aria-pressed="true">All</button>
+          <button type="button" data-show="unread" aria-pressed="false">Unread <span class="count" id="unreadCount" hidden></span></button>
+        </div>
+        <div class="bar-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="markAll">Mark all as read</button>
+          <button type="button" class="btn btn-danger-outline btn-sm" id="clearAll">Clear notifications</button>
+        </div>
+      </div>
+      <div id="notesBody"></div>
+    </section>
+  </main>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = LF.requireLogin();
+  if (!user) return;
+  LF.mountShell({ title: 'Notifications', active: 'NOTIFICATIONS.html' });
+
+  function $(id) { return document.getElementById(id); }
+  var show = 'all';
+
+  $('notesSub').textContent = LF.isAdmin(user) || LF.isStaff(user)
+    ? 'Claims, meet-ups, requests sent again, comments, and other updates from users.'
+    : 'Updates about your reports, found notices, and claim requests.';
+
+  function dayKey(iso) {
+    var d = new Date(iso); d.setHours(0, 0, 0, 0);
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    var diff = Math.round((t - d) / 864e5);
+    return diff <= 0 ? 'Today' : diff === 1 ? 'Yesterday' : diff < 7 ? 'This week' : 'Earlier';
+  }
+
+  function render() {
+    var all = LF.myNotes(user), unread = LF.unreadCount(user);
+    var list = show === 'unread' ? all.filter(function (n) { return !LF.isNoteRead(n, user); }) : all;
+    $('unreadCount').hidden = !unread;
+    $('unreadCount').textContent = unread;
+    $('markAll').disabled = !unread;
+    $('clearAll').disabled = !all.length;
+    document.querySelectorAll('[data-show]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.show === show)); });
+
+    if (!list.length) {
+      $('notesBody').innerHTML = '<div class="notes-empty">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>' +
+        (show === 'unread' ? '<b>You\'re all caught up</b>No unread notifications.' : '<b>No notifications yet</b>You\'ll see updates here as they happen.') +
+        '</div>';
+      return;
+    }
+    // Group by day
+    var groups = [], last = null;
+    list.forEach(function (n) {
+      var k = dayKey(n.at);
+      if (!last || last.key !== k) { last = { key: k, items: [] }; groups.push(last); }
+      last.items.push(n);
+    });
+    $('notesBody').innerHTML = groups.map(function (g) {
+      return '<h3 class="group-title">' + g.key + '</h3><ul class="note-list">' +
+        g.items.map(function (n) { return LF.noteItemHTML(n, user, { page: true }); }).join('') + '</ul>';
+    }).join('');
+  }
+
+  document.querySelectorAll('[data-show]').forEach(function (b) {
+    b.addEventListener('click', function () { show = b.dataset.show; render(); });
+  });
+  $('markAll').addEventListener('click', function () {
+    LF.markAllMineRead(user);
+    render();
+    LF.toast('All notifications marked as read.');
+  });
+  $('notesBody').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-note-read]');
+    if (b) { LF.markNoteRead(b.dataset.noteRead, user); render(); return; }
+    var d = e.target.closest('[data-note-del]');
+    if (d) {
+      var li = d.closest('.note'); if (li) li.classList.add('removing');
+      var undo = LF.deleteNote(d.dataset.noteDel, user);
+      setTimeout(render, 150);
+      LF.toast('Notification deleted.', false, { label: 'Undo', ms: 10000, fn: function () { undo(); render(); LF.toast('Notification restored.'); } });
+    }
+  });
+
+  // Clear several at once (10 seconds to undo)
+  function clear(onlyRead) {
+    var n = LF.myNotes(user).filter(function (x) { return !onlyRead || LF.isNoteRead(x, user); }).length;
+    if (!n) return;
+    LF.confirm({
+      title: 'Clear notifications?',
+      message: (onlyRead ? 'The ' + n + ' notification' + (n === 1 ? '' : 's') + ' you already read'
+                         : 'All ' + n + ' notification' + (n === 1 ? '' : 's')) +
+        ' will be removed from your list. You can undo this for 10 seconds.' +
+        (LF.isAdmin(user) || LF.isStaff(user) ? ' Other admin and staff accounts will still see them.' : ''),
+      confirmText: 'Clear notifications'
+    }).then(function (yes) {
+      if (!yes) return;
+      var res = LF.clearMyNotes(user, onlyRead);
+      render();
+      LF.toast(res.count + ' notification' + (res.count === 1 ? '' : 's') + ' cleared.', false,
+        { label: 'Undo', ms: 10000, fn: function () { res.undo(); render(); LF.toast('Notifications restored.'); } });
+    });
+  }
+  $('clearAll').addEventListener('click', function () { clear(false); });
+
+  render();
+})();
+</script>
+</body>
+</html>

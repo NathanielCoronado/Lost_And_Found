@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lost and Found</title>
+<script src="lf-app.js?v=6"></script>
+<script>
+  // Entry point: logged-in users go home, everyone else to the login page.
+  window.location.replace(LF.currentUser() ? LF.homeFor(LF.currentUser()) : 'LOGIN.html');
+</script>
+</head>
+<body><p><a href="LOGIN.html">Open Lost and Found</a></p></body>
+</html>

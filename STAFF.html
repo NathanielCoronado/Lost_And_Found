@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Staff Review and Approval | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .page.staff { max-width: 1240px; }
+  .page-sub { color: var(--muted); margin: -10px 0 20px; font-size: 15px; }
+
+  /* Tabs */
+  .tabs {
+    display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 14px;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 8px;
+    min-height: 42px; padding: 0 18px; border: none; border-radius: 9px;
+    background: none; color: var(--muted); font: 600 15px var(--font); cursor: pointer;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--navy); color: #fff; }
+  .tab .count { background: var(--soft); color: var(--text); border-radius: 999px; padding: 1px 9px; font-size: 13px; }
+  .tab[aria-selected="true"] .count { background: rgba(255, 255, 255, .2); color: #fff; }
+
+  .staff-filters { grid-template-columns: 220px 190px minmax(0, 1fr); }
+
+  /* Layout: list + details panel */
+  .staff-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+
+  .review-card { padding: 6px 0; overflow: hidden; }
+  .review-title { font-size: 20px; font-weight: 700; color: var(--navy); padding: 16px 22px 6px; }
+  .rv-head, .rv-row {
+    display: grid; align-items: center; gap: 12px; padding: 12px 22px;
+    grid-template-columns: 118px 58px minmax(0, 1.25fr) minmax(0, 1fr) var(--act-w, 300px);
+  }
+  .rv-head { font-size: 13px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .rv-row { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+  .rv-row:last-child { border-bottom: none; }
+  .rv-row:hover { background: #f8fafd; }
+  .rv-row.selected { background: #eef4fc; box-shadow: inset 4px 0 0 var(--blue); }
+  .rv-id { font-weight: 600; color: var(--blue); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .rv-type { font-size: 14px; }
+  .rv-item { min-width: 0; }
+  .rv-item strong { display: block; color: var(--navy); font-size: 15px; overflow-wrap: anywhere; }
+  .rv-item small { display: block; color: var(--muted); font-size: 13px; }
+  .rv-item .pill { margin-top: 5px; }
+  .rv-by { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+  .rv-by small { display: block; color: var(--muted); font-size: 13px; }
+  .rv-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rv-actions .btn-undo { flex-basis: 100%; }
+  .btn-unpost { background: #fff; color: var(--navy); border: 1px solid var(--navy); }
+  .btn-unpost:not(:disabled):hover { background: var(--navy); color: #fff; }
+  .rv-actions .btn { flex: 1; }
+  .review-card.is-requests { --act-w: 200px; }
+  .rv-actions .btn { min-height: 36px; padding: 0 8px; font-size: 13px; }
+  .rv-actions .btn.is-done, .modal-actions .btn.is-done {
+    background: var(--soft); color: var(--green); border-color: transparent; opacity: 1;
+  }
+  .rv-actions .btn svg { width: 14px; height: 14px; }
+  .list-empty { padding: 40px 22px; text-align: center; color: var(--muted); line-height: 1.6; }
+
+  /* Details panel */
+  .detail-card { position: sticky; top: calc(var(--top-h) + env(safe-area-inset-top, 0px) + 20px); padding: 24px; }
+  .detail-card h2 { font-size: 20px; color: var(--navy); margin-bottom: 16px; }
+  .detail-card .modal-photo { width: 100%; height: 170px; background-size: cover; margin-bottom: 14px; }
+  .detail-name { font-size: 18px; font-weight: 700; color: var(--navy); }
+  .detail-case { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  .detail-card .details { grid-template-columns: 96px 1fr; font-size: 14px; gap: 8px 12px; }
+  .detail-card .btn { width: 100%; margin-top: 18px; }
+  .detail-empty { color: var(--muted); font-size: 15px; line-height: 1.6; text-align: center; padding: 30px 6px; }
+  .detail-empty svg { width: 40px; height: 40px; stroke: var(--placeholder); display: block; margin: 0 auto 10px; }
+
+  /* 90-day monitoring */
+  .staff .stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .n-due { color: var(--red); }
+  .hold { margin-top: 7px; max-width: 220px; }
+  .hold-bar { height: 6px; border-radius: 99px; background: var(--soft); overflow: hidden; }
+  .hold-bar span { display: block; height: 100%; border-radius: 99px; background: var(--teal); }
+  .hold small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .hold.soon .hold-bar span { background: var(--orange); }
+  .hold.soon small { color: #b76a05; }
+  .hold.due .hold-bar span { background: var(--red); }
+  .hold.due small { color: var(--red); font-weight: 600; }
+  .dd-hold .hold { max-width: none; margin-top: 2px; }
+  .due-alert {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: #fdeaea; border: 1px solid #f5c2bf; color: #9b2424;
+    border-radius: 14px; padding: 12px 16px; margin: -8px 0 18px; font-size: 15px;
+  }
+  .due-alert .btn { min-height: 40px; }
+  .btn-dispose { background: #fff; color: var(--red); border: 1px solid #f1b9b9; }
+  .btn-dispose:not(:disabled):hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+  .note-box { margin-top: 14px; padding: 12px 14px; border-radius: var(--r-ctl); background: #fdeaea; color: #9b2424; font-size: 14px; }
+  .sub-item .sub-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .sub-item .sub-actions .btn { min-height: 36px; padding: 0 12px; font-size: 13px; }
+
+  .rv-view { display: none; }
+  @media (max-width: 1000px) {
+    .rv-actions .rv-view { display: inline-flex; flex-basis: 100%; }
+    .staff-grid { grid-template-columns: minmax(0, 1fr); }
+    .detail-card { display: none; }
+    .staff-filters { grid-template-columns: 1fr 1fr; }
+    .staff-filters .search-field { grid-column: 1 / -1; }
+  }
+  @media (max-width: 1000px) {
+    .staff .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 680px) {
+    .staff .stats { grid-template-columns: 1fr 1fr; }
+    .staff .stats .stat:last-child { grid-column: 1 / -1; }
+    .hold { max-width: none; }
+    .due-alert .btn { width: 100%; }
+    .page-sub { margin-top: -6px; }
+    .tabs { display: flex; }
+    .tab { flex: 1; justify-content: center; padding: 0 10px; }
+    .review-title { padding: 14px 16px 4px; }
+    .rv-head { display: none; }
+    .rv-row {
+      grid-template-columns: auto 1fr;
+      grid-template-areas: "id type" "item item" "by by" "actions actions";
+      gap: 6px 10px; padding: 14px 16px;
+    }
+    .rv-id { grid-area: id; } .rv-type { grid-area: type; text-align: right; }
+    .rv-item { grid-area: item; } .rv-by { grid-area: by; }
+    .rv-actions { grid-area: actions; margin-top: 8px; }
+    .rv-actions .btn { flex: 1; min-width: 0; min-height: 44px; font-size: 14px; padding: 0 6px; }
+    .sub-item { flex-direction: column; align-items: stretch; }
+    .sub-item .sub-actions .btn { flex: 1; min-height: 44px; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="page staff">
+    <h2 class="page-title">Reports to review</h2>
+    <p class="page-sub">Approve new reports, post them to Matching &amp; Search, and mark items as claimed once the owner picks them up.</p>
+
+    <section class="stats" aria-label="Summary">
+      <button type="button" class="stat" data-go="reports:review" aria-pressed="false">
+        <div class="stat-label">Needs review</div><div class="stat-num n-pending" id="cReview">0</div>
+      </button>
+      <button type="button" class="stat" data-go="reports:approved" aria-pressed="false">
+        <div class="stat-label">Ready to post</div><div class="stat-num" style="color:var(--blue)" id="cApproved">0</div>
+      </button>
+      <button type="button" class="stat" data-go="requests:pending" aria-pressed="false">
+        <div class="stat-label">Pending requests</div><div class="stat-num n-lost" id="cRequests">0</div>
+      </button>
+      <button type="button" class="stat" data-go="reports:posted" aria-pressed="false">
+        <div class="stat-label">Posted, unclaimed</div><div class="stat-num n-found" id="cPosted">0</div>
+      </button>
+      <button type="button" class="stat" data-go="reports:due" aria-pressed="false">
+        <div class="stat-label">Due for disposal</div><div class="stat-num n-due" id="cDue">0</div>
+      </button>
+    </section>
+
+    <div class="due-alert" id="dueAlert" role="status" hidden>
+      <span id="dueText"></span>
+      <button type="button" class="btn btn-danger" id="dueShow">Show them</button>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="What to review">
+      <button type="button" class="tab" role="tab" id="tabReports" data-tab="reports" aria-selected="true">Reports <span class="count" id="nReports">0</span></button>
+      <button type="button" class="tab" role="tab" id="tabRequests" data-tab="requests" aria-selected="false">Requests <span class="count" id="nRequests">0</span></button>
+    </div>
+
+    <form class="filters staff-filters" id="filters" role="search">
+      <div class="field"><label for="fStatus" class="sr-only">Status</label><div class="select"><select id="fStatus"></select></div></div>
+      <div class="field"><label for="fType" class="sr-only">Type</label><div class="select"><select id="fType"></select></div></div>
+      <div class="field search-field">
+        <label for="fSearch" class="sr-only">Search</label>
+        <input type="search" id="fSearch" placeholder="Search item, case number, or name" enterkeyhint="search">
+      </div>
+    </form>
+
+    <div class="staff-grid">
+      <section class="card review-card" aria-labelledby="listTitle">
+        <h3 class="review-title" id="listTitle">Reports</h3>
+        <div class="rv-head" id="listHead" aria-hidden="true"></div>
+        <div id="rows"></div>
+      </section>
+
+      <aside class="card detail-card" id="detailPanel" aria-live="polite"></aside>
+    </div>
+  </main>
+
+  <!-- Full details -->
+  <div class="modal-backdrop" id="detailModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <button type="button" class="modal-close" id="detailClose" aria-label="Close">&times;</button>
+      <div id="detailBody"></div>
+    </div>
+  </div>
+
+  <!-- Reject with a reason -->
+  <div class="modal-backdrop center top" id="rejectModal">
+    <div class="modal narrow" role="dialog" aria-modal="true" aria-labelledby="rjTitle">
+      <h3 id="rjTitle" style="margin-right:0">Don't approve this?</h3>
+      <p class="modal-lead" id="rjLead"></p>
+      <form id="rejectForm" novalidate>
+        <div class="field">
+          <label for="rjNote">Comment for the user <span>(optional)</span></label>
+          <textarea id="rjNote" style="min-height:110px" placeholder="Insert comment"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="rjCancel">Cancel</button>
+          <button type="submit" class="btn btn-danger">Don't approve</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- First visit: staff profile -->
+  <div class="modal-backdrop" id="profileModal" data-static>
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+      <h3 id="pTitle" style="text-align:center;margin-right:0">Complete your staff profile</h3>
+      <p style="text-align:center;margin:8px 0 22px">Your staff account is approved. Add your details once, then you can start reviewing reports.</p>
+      <form id="profileForm" novalidate>
+        <div id="profileFields"></div>
+        <div class="form-actions"><button type="submit" class="btn btn-success">Save and start reviewing</button></div>
+      </form>
+    </div>
+  </div>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = LF.requireLogin({ role: 'staff', needProfile: true });
+  if (!user) return;
+  LF.mountShell({ title: 'Staff Review and Approval', active: 'STAFF.html' });
+
+  var esc = LF.esc, fmtDate = LF.fmtDate;
+  function $(id) { return document.getElementById(id); }
+  var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+  var narrow = window.matchMedia('(max-width: 1000px)');
+
+  /* ---------- Stages ----------
+     Report:  Needs review -> Approved (ready to post) -> Posted -> Claimed
+              (or Not approved)
+     Request: Pending -> Approved / Rejected */
+  var STAGE = {
+    review:   { label: 'Needs review',  cls: 'pill-orange', order: 0 },
+    approved: { label: 'Ready to post', cls: 'pill-blue',   order: 1 },
+    posted:   { label: 'Posted',        cls: 'pill-teal',   order: 2 },
+    claimed:  { label: 'Claimed',       cls: 'pill-green',  order: 3 },
+    rejected: { label: 'Not approved',  cls: 'pill-red',    order: 4 },
+    disposed: { label: 'Disposed',      cls: 'pill-gray',   order: 5 },
+    closed:   { label: 'Case closed',   cls: 'pill-gray',   order: 5 },
+    pending:  { label: 'Pending',       cls: 'pill-orange', order: 0 },
+    reqApproved: { label: 'Approved',   cls: 'pill-green',  order: 1 },
+    reqRejected: { label: 'Declined',   cls: 'pill-red',    order: 2 }
+  };
+  function stageOf(r) {
+    var s = String(r.status || '').toLowerCase();
+    if (LF.isRequest(r)) return s === 'approved' ? 'reqApproved' : s === 'rejected' ? 'reqRejected' : 'pending';
+    if (s === 'claimed') return 'claimed';
+    if (s === 'disposed') return 'disposed';
+    if (s === 'closed') return 'closed';
+    if (r.review === 'pending') return 'review';
+    if (r.review === 'approved') return 'approved';
+    if (r.review === 'rejected') return 'rejected';
+    return 'posted';
+  }
+  function stagePill(r) {
+    var st = STAGE[stageOf(r)];
+    return '<span class="pill ' + st.cls + '">' + st.label + '</span>' +
+      (r.resubmitCount && stageOf(r) === 'pending' ? ' <span class="pill pill-blue">Sent again</span>' : '') + LF.surrenderBadgeHTML(r);
+  }
+  var TYPE = { lost: 'Lost', found: 'Found', claim: 'Claim', notice: 'Found notice' };
+  var TYPE_CLS = { lost: 'type-lost', found: 'type-found', claim: 'type-request', notice: 'type-request' };
+
+  function ago(iso) {
+    var m = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.round(h / 24);
+    return d < 7 ? d + (d === 1 ? ' day ago' : ' days ago') : fmtDate(iso);
+  }
+  // Posted items that reached 90 days jump to the top of the list.
+  function isDue(r) { return LF.isMonitored(r) && LF.holdInfo(r).due; }
+  function sortOrder(r) { return isDue(r) ? -1 : STAGE[stageOf(r)].order; }
+  function disposeWord(r) { return r.kind === 'found' ? 'Dispose' : 'Close case'; }
+
+  // "Day 12 of 90" + progress bar
+  function holdHTML(r) {
+    if (!LF.isMonitored(r)) return '';
+    var h = LF.holdInfo(r), D = LF.HOLD_DAYS;
+    var cls = h.due ? 'due' : h.left <= 14 ? 'soon' : '';
+    var text = h.due
+      ? h.days + ' days kept • ' + (r.kind === 'found' ? 'Due for disposal' : 'Due to close')
+      : 'Day ' + h.days + ' of ' + D + ' • ' + h.left + (h.left === 1 ? ' day left' : ' days left');
+    return '<div class="hold ' + cls + '"><div class="hold-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + D +
+      '" aria-valuenow="' + Math.min(h.days, D) + '" aria-label="Days kept"><span style="width:' + h.pct + '%"></span></div>' +
+      '<small>' + text + '</small></div>';
+  }
+
+  function key(r) { return r.kind + ':' + r.id; }
+  function fromKey(k) { var p = k.split(':'); return LF.findRecord(p[0], p.slice(1).join(':')); }
+  function reportFor(req) {
+    var list = LF.getRecords(req.refKind || 'found').concat(LF.getRecords(req.refKind === 'lost' ? 'found' : 'lost'));
+    return list.find(function (r) { return r.caseNo === req.refCase; }) || null;
+  }
+
+  /* ---------- State ---------- */
+  var tab = 'reports';
+  var selectedKey = null;
+  var fStatus = $('fStatus'), fType = $('fType'), fSearch = $('fSearch');
+
+  var FILTERS = {
+    reports: {
+      status: [['', 'All statuses'], ['review', 'Needs review'], ['approved', 'Ready to post'], ['due', 'Due for disposal (90+ days)'], ['posted', 'Posted'],
+               ['claimed', 'Claimed'], ['rejected', 'Not approved'], ['disposed', 'Disposed'], ['closed', 'Case closed']],
+      type: [['', 'Lost and found'], ['lost', 'Lost only'], ['found', 'Found only']]
+    },
+    requests: {
+      status: [['', 'All statuses'], ['pending', 'Pending'], ['reqApproved', 'Approved'], ['reqRejected', 'Rejected']],
+      type: [['', 'All requests'], ['claim', 'Claim requests'], ['notice', 'Found notices']]
+    }
+  };
+  function fillFilters() {
+    [[fStatus, FILTERS[tab].status], [fType, FILTERS[tab].type]].forEach(function (pair) {
+      pair[0].innerHTML = pair[1].map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('');
+    });
+  }
+
+  function allOf(which) {
+    return which === 'reports'
+      ? LF.getRecords('lost').concat(LF.getRecords('found'))
+      : LF.getRecords('claim').concat(LF.getRecords('notice'));
+  }
+
+  function setTab(t, status) {
+    tab = t;
+    document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); });
+    fillFilters();
+    fStatus.value = status || '';
+    fType.value = '';
+    document.querySelector('.review-card').classList.toggle('is-requests', t === 'requests');
+    $('listTitle').textContent = t === 'reports' ? 'Reports' : 'Claim requests and found notices';
+    $('listHead').innerHTML = t === 'reports'
+      ? '<span>ID</span><span>Type</span><span>Item</span><span>Submitted by</span><span>Actions</span>'
+      : '<span>ID</span><span>Type</span><span>For item</span><span>Sent by</span><span>Actions</span>';
+    render();
+  }
+
+  /* ---------- Render list ---------- */
+  function counts() {
+    var reps = allOf('reports'), reqs = allOf('requests');
+    function n(list, st) { return list.filter(function (r) { return stageOf(r) === st; }).length; }
+    $('cReview').textContent = n(reps, 'review');
+    $('cApproved').textContent = n(reps, 'approved');
+    $('cPosted').textContent = n(reps, 'posted');
+    $('cRequests').textContent = n(reqs, 'pending');
+    var due = reps.filter(isDue);
+    $('cDue').textContent = due.length;
+    $('dueAlert').hidden = !due.length || (tab === 'reports' && fStatus.value === 'due');
+    $('dueText').textContent = due.length === 1
+      ? '1 item has been kept for ' + LF.HOLD_DAYS + ' days or more and is due for disposal.'
+      : due.length + ' items have been kept for ' + LF.HOLD_DAYS + ' days or more and are due for disposal.';
+    $('nReports').textContent = n(reps, 'review') + n(reps, 'approved');
+    $('nRequests').textContent = n(reqs, 'pending');
+    document.querySelectorAll('.stat').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.go === tab + ':' + fStatus.value));
+    });
+  }
+
+  function mmss(ms) { var s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+  function undoBtn(r) {
+    var left = LF.undoLeft(r);
+    if (!left) return '';
+    return '<button type="button" class="btn btn-undo" data-act="undo" data-key="' + esc(key(r)) + '" data-until="' +
+      (new Date(r.undo.at).getTime() + LF.UNDO_MS) + '">Undo "' + esc(r.undo.action) + '" <span class="cd">' + mmss(left) + '</span></button>';
+  }
+  function actionsFor(r) { return actionsCore(r) + undoBtn(r); }
+  function actionsCore(r) {
+    var st = stageOf(r), k = esc(key(r));
+    function btn(act, label, cls, enabled, done) {
+      return '<button type="button" class="btn ' + (done ? 'is-done' : cls) + '" data-act="' + act + '" data-key="' + k + '"' +
+        (enabled ? '' : ' disabled') + '>' + (done ? CHECK : '') + label + '</button>';
+    }
+    if (LF.isRequest(r)) {
+      return btn('req-approve', st === 'reqApproved' ? 'Approved' : 'Approve', 'btn-success', st === 'pending', st === 'reqApproved') +
+             btn('req-reject', st === 'reqRejected' ? 'Declined' : 'Decline', 'btn-danger-outline', st === 'pending', false);
+    }
+    if (st === 'rejected' || st === 'disposed') {
+      return '<button type="button" class="btn btn-ghost" data-act="view" data-key="' + k + '">View</button>';
+    }
+    if (st === 'closed') {
+      return '<button type="button" class="btn btn-ghost" data-act="view" data-key="' + k + '">View</button>';
+    }
+    if (st === 'posted') {
+      var due = isDue(r);
+      return '<button type="button" class="btn btn-unpost" data-act="unpost" data-key="' + k + '">Unpost</button>' +
+             btn('claimed', 'Claimed', 'btn-steel', true, false) +
+             '<button type="button" class="btn btn-dispose" data-act="dispose" data-key="' + k + '"' +
+               (due ? '' : ' disabled title="Available after ' + LF.HOLD_DAYS + ' days"') + '>' + disposeWord(r) + '</button>';
+    }
+    var o = STAGE[st].order;
+    var closed = false;
+    return btn('approve', o >= 1 && !closed ? 'Approved' : 'Approve', 'btn-success', st === 'review', o >= 1 && !closed) +
+           btn('post', o >= 2 && !closed ? 'Posted' : 'Post', 'btn-navy', st === 'approved', o >= 2 && !closed) +
+           btn('claimed', 'Claimed', 'btn-steel', st === 'posted', st === 'claimed');
+  }
+
+  function render() {
+    counts();
+    var status = fStatus.value, type = fType.value, q = fSearch.value.trim().toLowerCase();
+    var list = allOf(tab).filter(function (r) {
+      if (status === 'due') { if (!isDue(r)) return false; }
+      else if (status && stageOf(r) !== status) return false;
+      if (type && r.kind !== type) return false;
+      if (q) {
+        var hay = [r.itemName, r.caseNo, r.refCase, LF.ownerNameOf(r), r.name, r.description, r.message].join(' ').toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    }).sort(function (a, b) {
+      return sortOrder(a) - sortOrder(b) || b.createdAt.localeCompare(a.createdAt);
+    });
+
+    var rows = $('rows');
+    if (!list.length) {
+      rows.innerHTML = '<div class="list-empty">' + (status || type || q
+        ? 'Nothing matches these filters.'
+        : tab === 'reports' ? 'No reports yet. New reports from users will show up here.'
+                            : 'No requests yet. Claim requests and found notices will show up here.') + '</div>';
+    } else {
+      rows.innerHTML = list.map(function (r) {
+        var req = LF.isRequest(r);
+        return '<article class="rv-row' + (key(r) === selectedKey ? ' selected' : '') + '" data-key="' + esc(key(r)) + '" tabindex="0">' +
+          '<div class="rv-id">#' + esc(r.caseNo) + '</div>' +
+          '<div class="rv-type"><span class="' + TYPE_CLS[r.kind] + '">' + TYPE[r.kind] + '</span></div>' +
+          '<div class="rv-item"><strong>' + esc(r.itemName) + '</strong>' +
+            (req ? '<small>for #' + esc(r.refCase) + '</small>' : '') + stagePill(r) + holdHTML(r) + '</div>' +
+          '<div class="rv-by">' + esc(req ? (r.name || LF.ownerNameOf(r)) : LF.ownerNameOf(r)) + '<small>' + ago(r.createdAt) + '</small></div>' +
+          '<div class="rv-actions">' + actionsFor(r) +
+            '<button type="button" class="btn btn-soft rv-view" data-act="view" data-key="' + esc(key(r)) + '">View details</button></div>' +
+        '</article>';
+      }).join('');
+    }
+    renderPanel();
+    if ($('detailModal').classList.contains('show')) renderFull();
+  }
+
+  /* ---------- Details panel (summary) ---------- */
+  function photoBox(r) { return LF.photoGalleryHTML(r); }   // main photo + up to 3 more
+
+  function renderPanel() {
+    var panel = $('detailPanel');
+    var r = selectedKey ? fromKey(selectedKey) : null;
+    if (!r) {
+      panel.innerHTML = '<h2>Item details</h2><div class="detail-empty">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h14v-4"/><path d="M13 3h8v8"/><path d="M21 3l-9 9"/></svg>' +
+        'Select a row to see its details here.</div>';
+      return;
+    }
+    var req = LF.isRequest(r);
+    var rows = req
+      ? [['Type', TYPE[r.kind]], ['For item', '#' + esc(r.refCase)], ['Sent by', esc(r.name)], ['Contact', LF.contactHTML(r)], ['Status', stagePill(r)]]
+      : [['Type', TYPE[r.kind] + ' report'], ['Category', esc(LF.catLabel(r))], ['Location', esc(LF.locLabel(r))],
+         ['Date', fmtDate(r.date)], ['Submitted by', esc(LF.ownerNameOf(r))], ['Contact', LF.contactHTML(r)], ['Status', stagePill(r)]];
+    if (!req && LF.isMonitored(r)) rows.push(['Kept', '<div class="dd-hold">' + holdHTML(r) + '</div>']);
+    panel.innerHTML = '<h2>Item details</h2>' + photoBox(r) +
+      '<div class="detail-name">' + esc(r.itemName) + '</div>' +
+      '<div class="detail-case">#' + esc(r.caseNo) + '</div>' +
+      '<dl class="details">' + rows.map(function (x) { return '<dt>' + x[0] + '</dt><dd>' + x[1] + '</dd>'; }).join('') + '</dl>' +
+      '<button type="button" class="btn btn-outline" id="viewFull">View details</button>';
+    $('viewFull').addEventListener('click', openFull);
+  }
+
+  /* ---------- Full details (modal) ---------- */
+  var detailModal = $('detailModal');
+  function openFull() { renderFull(); LF.openModal(detailModal); $('detailClose').focus(); }
+  $('detailClose').addEventListener('click', function () { LF.closeModal(detailModal); });
+  detailModal.addEventListener('click', function (e) { if (e.target === detailModal) LF.closeModal(detailModal); });
+
+  function renderFull() {
+    var r = selectedKey ? fromKey(selectedKey) : null;
+    if (!r) { LF.closeModal(detailModal); return; }
+    var req = LF.isRequest(r), st = stageOf(r);
+    var html = '<h3 id="mTitle">' + esc(r.itemName) + '</h3>' +
+      '<p class="case">#' + esc(r.caseNo) + ' • ' + TYPE[r.kind] + (req ? '' : ' report') + '</p>' + (req ? '' : photoBox(r));
+
+    if (req) {
+      var rep = reportFor(r);
+      html += '<dl class="details">' +
+        '<dt>Status</dt><dd>' + stagePill(r) + '</dd>' +
+        '<dt>For item</dt><dd>' + (rep ? '<button type="button" class="link-btn" style="margin:0;padding:0" data-open="' + esc(key(rep)) + '">#' + esc(r.refCase) + ' ' + esc(rep.itemName) + '</button> ' + stagePill(rep) : '#' + esc(r.refCase)) + '</dd>' +
+        '<dt>Item status</dt><dd>' + (function (s) { return '<span class="pill ' + s.cls + '">' + s.text + '</span> <small style="color:var(--muted)">' + esc(s.note) + '</small>'; })(LF.itemStatusOf(r)) + '</dd>' +
+        '<dt>Sent by</dt><dd><button type="button" class="name-link" data-profile="' + esc(r.ownerId || '') + '" data-name="' + esc(r.name) + '">' + esc(r.name) + '</button></dd>' +
+        '<dt>Contact</dt><dd>' + LF.contactHTML(r) + '</dd>' +
+        '<dt>Sent on</dt><dd>' + fmtDate(r.createdAt) + ' ' + LF.fmtTime(r.createdAt) + '</dd>' +
+        (r.where ? '<dt>Item is now</dt><dd>' + esc(r.where) + '</dd>' : '') +
+        (r.noticeCase ? '<dt>Through</dt><dd>Found notice #' + esc(r.noticeCase) + ' (the owner is claiming what a finder reported)</dd>' : '') +
+        '<dt>' + (r.kind === 'claim' ? 'Proof' : 'Message') + '</dt><dd>' + (esc(r.message) || '—') + '</dd>' +
+      '</dl>';
+      html += '<h4>Photos</h4>' + LF.requestPhotosHTML(r);
+      html += '<h4>Comments (' + (r.comments || []).length + ')</h4>' + LF.commentsHTML(r) +
+        LF.commentFormHTML(r.kind + ':' + r.id, 'Reply as staff (the owner and the sender will see it).');
+      if (st === 'reqApproved' && r.kind === 'claim' && rep && stageOf(rep) === 'posted') {
+        html += '<p class="status-help">Claim approved. Mark #' + esc(rep.caseNo) + ' as claimed once the owner picks it up.</p>';
+      }
+    } else {
+      html += '<dl class="details">' +
+        '<dt>Status</dt><dd>' + stagePill(r) + '</dd>' +
+        '<dt>Category</dt><dd>' + esc(LF.catLabel(r)) + '</dd>' +
+        '<dt>Location</dt><dd>' + esc(LF.locLabel(r)) + '</dd>' +
+        '<dt>Date ' + (r.kind === 'lost' ? 'lost' : 'found') + '</dt><dd>' + fmtDate(r.date) + '</dd>' +
+        (LF.isMonitored(r) ? '<dt>Monitoring</dt><dd class="dd-hold">' + holdHTML(r) +
+          '<small style="color:var(--muted)">Posted ' + fmtDate(LF.holdInfo(r).from) + '. ' + (r.kind === 'found' ? 'Dispose' : 'Close') + ' on or after ' + fmtDate(LF.holdInfo(r).until) + '</small></dd>' : '') +
+        '<dt>Submitted by</dt><dd>' + esc(LF.ownerNameOf(r)) + '</dd>' +
+        '<dt>Contact</dt><dd>' + LF.contactHTML(r) + '</dd>' +
+        '<dt>Submitted on</dt><dd>' + fmtDate(r.createdAt) + ' ' + LF.fmtTime(r.createdAt) + '</dd>' +
+        '<dt>Description</dt><dd>' + (esc(r.description) || '—') + '</dd>' +
+      '</dl>';
+      if (st === 'rejected' && r.reviewNote) html += '<div class="note-box"><b>Reason:</b> ' + esc(r.reviewNote) + '</div>';
+
+      var reqs = LF.requestsFor(r.caseNo);
+      html += '<h4>' + (r.kind === 'found' ? 'Claim requests' : 'Found notices') + ' for this item</h4>' +
+        (reqs.length ? '<div class="sub-list">' + reqs.map(function (q) {
+          var qs = stageOf(q);
+          return '<div class="sub-item"><div style="flex:1;min-width:0"><strong><button type="button" class="name-link" data-profile="' + esc(q.ownerId || '') + '" data-name="' + esc(q.name) + '">' + esc(q.name) + '</button></strong> ' + stagePill(q) +
+            '<small>#' + esc(q.caseNo) + ' • ' + esc(q.mobile) + (LF.ownerEmailOf(q) ? ' • ' + esc(LF.ownerEmailOf(q)) : '') + ' • ' + ago(q.createdAt) + '</small>' +
+            '<p>' + esc(q.message) + '</p></div>' +
+            (qs === 'pending' ? '<div class="sub-actions">' +
+              '<button type="button" class="btn btn-danger-outline" data-act="req-reject" data-key="' + esc(key(q)) + '">Reject</button>' +
+              '<button type="button" class="btn btn-success" data-act="req-approve" data-key="' + esc(key(q)) + '">Approve</button></div>' : '') +
+          '</div>';
+        }).join('') + '</div>' : '<p>None yet.</p>');
+      html += LF.surrenderBoxHTML(r) + '<div class="msg-row">' + LF.messageBtnHTML(r.ownerId, r.caseNo, 'Message ' + LF.ownerNameOf(r), 'btn btn-outline btn-block') + '</div>' +
+        LF.reportCommentsHTML(r);
+    }
+
+    html += '<h4>History</h4>' + (LF.timelineHTML(r) || '<p>No history yet.</p>');
+
+    // Next step buttons
+    var k = esc(key(r)), a = [];
+    a.push('<button type="button" class="btn btn-danger-outline" data-act="delete" data-key="' + k + '">Delete</button>');
+    if (req) {
+      if (st === 'pending') {
+        a.push('<button type="button" class="btn btn-ghost" data-act="req-reject" data-key="' + k + '">Reject</button>');
+        a.push('<button type="button" class="btn btn-success" data-act="req-approve" data-key="' + k + '">Approve request</button>');
+      }
+    } else {
+      if (st === 'review' || st === 'approved') a.push('<button type="button" class="btn btn-ghost" data-act="reject" data-key="' + k + '">Don\'t approve</button>');
+      if (st === 'review') a.push('<button type="button" class="btn btn-success" data-act="approve" data-key="' + k + '">Approve</button>');
+      if (st === 'approved') a.push('<button type="button" class="btn btn-navy" data-act="post" data-key="' + k + '">Post to Matching &amp; Search</button>');
+      if (LF.undoLeft(r)) a.push(undoBtn(r));
+      if (st === 'posted') {
+        a.push('<button type="button" class="btn btn-unpost" data-act="unpost" data-key="' + k + '">Unpost</button>');
+        a.push('<button type="button" class="btn btn-dispose" data-act="dispose" data-key="' + k + '"' +
+          (isDue(r) ? '' : ' disabled') + '>' + (isDue(r) ? disposeWord(r) : disposeWord(r) + ' in ' + LF.holdInfo(r).left + ' days') + '</button>');
+        a.push('<button type="button" class="btn btn-steel" data-act="claimed" data-key="' + k + '">Mark as claimed</button>');
+        a.push(LF.surrenderInfo(r)
+          ? '<button type="button" class="btn btn-ghost" data-act="unsurrender" data-key="' + k + '">Remove "At the office" tag</button>'
+          : '<button type="button" class="btn btn-office" data-act="surrender" data-key="' + k + '">Surrendered to the office</button>');
+      }
+      if (st === 'rejected') a.push('<button type="button" class="btn btn-success" data-act="approve" data-key="' + k + '">Approve anyway</button>');
+    }
+    html += '<div class="modal-actions">' + a.join('') + '</div>';
+    $('detailBody').innerHTML = html;
+  }
+
+  /* ---------- Selecting rows ---------- */
+  function select(k, openOnPhone) {
+    selectedKey = k;
+    document.querySelectorAll('.rv-row').forEach(function (row) { row.classList.toggle('selected', row.dataset.key === k); });
+    renderPanel();
+    if (openOnPhone && narrow.matches) openFull();
+  }
+
+  $('rows').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (b) { if (!b.disabled) act(b.dataset.act, b.dataset.key); return; }
+    var row = e.target.closest('.rv-row');
+    if (row) select(row.dataset.key, true);
+  });
+  $('rows').addEventListener('keydown', function (e) {
+    var row = e.target.closest('.rv-row');
+    if (row && e.target === row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(row.dataset.key, false); openFull(); }
+  });
+  $('detailBody').addEventListener('click', function (e) {
+    var o = e.target.closest('[data-open]');
+    if (o) {
+      var rec = fromKey(o.dataset.open);
+      if (rec && tab !== 'reports') setTab('reports');
+      select(o.dataset.open, false);
+      renderFull();
+      detailModal.querySelector('.modal').scrollTop = 0;
+      return;
+    }
+    var b = e.target.closest('[data-act]');
+    if (b && !b.disabled) act(b.dataset.act, b.dataset.key);
+  });
+
+  /* ---------- Actions ---------- */
+  function done(msg) { render(); LF.toast(msg); }
+
+  function act(action, k) {
+    var r = fromKey(k);
+    if (!r) return;
+    var label = '#' + r.caseNo + ' ' + r.itemName;
+    if (!selectedKey || selectedKey !== k) select(k, false);
+
+    if (action === 'view') { select(k, false); return openFull(); }
+    if (action === 'surrender') {
+      return LF.askSurrender(r).then(function (saved) {
+        if (saved) done(label + ' is tagged "At the office". The ' + (r.kind === 'lost' ? 'owner' : 'finder') + ' was notified.');
+      });
+    }
+    if (action === 'unsurrender') {
+      return LF.confirm({ title: 'Remove the "At the office" tag?', message: 'Use this if the item isn\'t at the office anymore or was tagged by mistake.', confirmText: 'Remove tag', danger: false })
+        .then(function (yes) { if (yes && LF.markSurrendered(r.kind, r.id, false)) done('Tag removed from ' + label + '.'); });
+    }
+    if (action === 'approve') {
+      LF.changeRecord(r.kind, r.id, { review: 'approved', reviewNote: '' }, 'Approved');
+      return done(label + ' approved. Post it when it\'s ready.');
+    }
+    if (action === 'unpost') {
+      LF.changeRecord(r.kind, r.id, { review: 'approved' }, 'Unposted');
+      return done(label + ' was removed from Matching & Search.');
+    }
+    if (action === 'undo') {
+      var a0 = r.undo && r.undo.action;
+      if (!LF.undoChange(r.kind, r.id)) { render(); return LF.toast('The 10 seconds undo window has ended.', true); }
+      return done('Undid "' + a0 + '" on ' + label + '.');
+    }
+    if (action === 'post') {
+      LF.notifyUser(r.ownerId, 'Your ' + r.kind + ' report #' + r.caseNo + ' (' + r.itemName + ') is now posted in Matching & Search.', r.caseNo);
+      LF.changeRecord(r.kind, r.id, { review: 'posted' }, 'Posted');
+      return done(label + ' is now visible in Matching & Search.');
+    }
+    if (action === 'claimed') {
+      return LF.confirm({
+        title: 'Mark as claimed?',
+        message: 'Only do this once the owner has picked up "' + r.itemName + '" (#' + r.caseNo + ') and showed a valid ID.',
+        confirmText: 'Mark as claimed', danger: false
+      }).then(function (yes) {
+        if (!yes) return;
+        LF.changeRecord(r.kind, r.id, { status: 'Claimed' }, 'Marked as claimed');
+        done(label + ' marked as claimed.');
+      });
+    }
+    if (action === 'dispose') {
+      var h = LF.holdInfo(r);
+      if (!h.due) { LF.toast('This can be ' + (r.kind === 'found' ? 'disposed' : 'closed') + ' after ' + LF.HOLD_DAYS + ' days (' + h.left + ' days left).', true); return; }
+      var isFound = r.kind === 'found';
+      var pending = LF.requestsFor(r.caseNo).filter(function (q) { return stageOf(q) === 'pending'; }).length;
+      return LF.confirm({
+        title: isFound ? 'Dispose this item?' : 'Close this case?',
+        message: '"' + r.itemName + '" (#' + r.caseNo + ') has been ' + (isFound ? 'kept' : 'open') + ' for ' + h.days + ' days with no claim. ' +
+          (pending ? 'It still has ' + pending + ' pending request' + (pending > 1 ? 's' : '') + '. ' : '') +
+          (isFound ? 'It will be marked Disposed' : 'It will be marked Case closed') + ' and people can no longer send requests for it.',
+        confirmText: isFound ? 'Dispose item' : 'Close case'
+      }).then(function (yes) {
+        if (!yes) return;
+        LF.changeRecord(r.kind, r.id, { status: isFound ? 'Disposed' : 'Closed' },
+          isFound ? 'Disposed' : 'Case closed', 'Unclaimed after ' + h.days + ' days');
+        done(label + (isFound ? ' marked as disposed.' : ' case closed.'));
+      });
+    }
+    if (action === 'req-approve') {
+      LF.changeRecord(r.kind, r.id, { status: 'Approved' }, 'Approved');
+      LF.notifyRequestDecision(r, true);
+      return done(r.kind === 'claim'
+        ? 'Claim approved. Mark #' + r.refCase + ' as claimed when the owner picks it up.'
+        : 'Found notice approved. The owner will see it in My Reports.');
+    }
+    if (action === 'reject' || action === 'req-reject') {
+      return askReason(r, function (note) {
+        if (action === 'reject') {
+          LF.changeRecord(r.kind, r.id, { review: 'rejected', reviewNote: note }, 'Not approved', note || 'No comment');
+          LF.notifyUser(r.ownerId, 'Your ' + r.kind + ' report #' + r.caseNo + ' (' + r.itemName + ') was not approved' +
+            (note ? ': "' + note + '".' : ' (no comment).') + ' You can delete it and submit a corrected one.', r.caseNo);
+        } else {
+          LF.changeRecord(r.kind, r.id, { status: 'Rejected', reviewNote: note }, 'Declined', note || 'No comment');
+          LF.notifyRequestDecision(r, false, note);
+        }
+        done(label + (action === 'reject' ? ' was not approved' : ' declined') + (note ? ' with a comment.' : ' without a comment.'));
+      });
+    }
+    if (action === 'delete') {
+      var n = LF.isRequest(r) ? 0 : LF.requestsFor(r.caseNo).length;
+      return LF.confirm({
+        title: 'Delete #' + r.caseNo + '?',
+        message: '"' + r.itemName + '" will be removed for everyone' + (n ? ', along with ' + n + (n > 1 ? ' requests' : ' request') + ' sent for it' : '') + '. This can\'t be undone.',
+        confirmText: 'Delete'
+      }).then(function (yes) {
+        if (!yes) return;
+        LF.deleteRecord(r.kind, r.id);
+        selectedKey = null;
+        LF.closeModal(detailModal);
+        done('#' + r.caseNo + ' deleted.');
+      });
+    }
+  }
+
+  /* ---------- Reject reason ---------- */
+  var rejectModal = $('rejectModal'), rejectCb = null;
+  function askReason(r, cb) {
+    rejectCb = cb;
+    $('rjTitle').textContent = LF.isRequest(r) ? 'Reject this request?' : 'Don\'t approve this report?';
+    $('rjLead').textContent = '#' + r.caseNo + ' ' + r.itemName + ' by ' + (r.name || LF.ownerNameOf(r)) + '.';
+    $('rjNote').value = '';
+    LF.clearFieldError($('rjNote'));
+    LF.openModal(rejectModal);
+    $('rjNote').focus();
+  }
+  $('rjCancel').addEventListener('click', function () { LF.closeModal(rejectModal); });
+  rejectModal.addEventListener('click', function (e) { if (e.target === rejectModal) LF.closeModal(rejectModal); });
+  $('rejectForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var note = $('rjNote').value.trim();
+    // The comment is optional: leave it blank to decline without one
+    LF.closeModal(rejectModal);
+    if (rejectCb) rejectCb(note);
+  });
+
+  /* ---------- Tabs, stats, filters ---------- */
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.addEventListener('click', function () { selectedKey = null; setTab(b.dataset.tab); });
+  });
+  document.querySelectorAll('.stat').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = b.dataset.go.split(':');
+      var same = tab === p[0] && fStatus.value === p[1];
+      if (tab !== p[0]) selectedKey = null;
+      setTab(p[0], same ? '' : p[1]);
+    });
+  });
+  $('dueShow').addEventListener('click', function () { selectedKey = null; setTab('reports', 'due'); });
+  $('filters').addEventListener('submit', function (e) { e.preventDefault(); fSearch.blur(); render(); });
+  fStatus.addEventListener('change', render);
+  fType.addEventListener('change', render);
+  fSearch.addEventListener('input', render);
+
+  /* ---------- First visit: staff profile ---------- */
+  if (!user.profileCompleted) {
+    var pf = LF.profileForm($('profileFields'), { userId: user.id });
+    pf.write({ firstName: user.firstName, lastName: user.lastName, email: user.email });
+    LF.openModal($('profileModal'));
+    $('profileForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var bad = pf.validate();
+      if (bad) { bad.focus(); LF.toast('Fix the highlighted fields.', true); return; }
+      var d = pf.read();
+      var saved = LF.updateUser(user.id, { profileCompleted: true, profile: d, firstName: d.firstName, lastName: d.lastName, email: d.email });
+      if (!saved) { LF.toast(LF.STORAGE_FULL, true); return; }
+      user = saved;
+      LF.closeModal($('profileModal'));
+      LF.refreshShellUser();
+      LF.toast('Profile saved. You can start reviewing.');
+    });
+  }
+
+  /* ---------- Comments ---------- */
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest('.c-form');
+    if (!f) return;
+    e.preventDefault();
+    var ta = f.querySelector('textarea'), text = ta.value.trim();
+    if (!text) { ta.focus(); return; }
+    var p = f.dataset.ckey.split(':');
+    if (!LF.addComment(p[0], p[1], text)) { LF.toast(LF.STORAGE_FULL, true); return; }
+    render(); LF.toast('Comment posted.');
+  });
+
+  /* ---------- Undo countdown ---------- */
+  setInterval(function () {
+    var expired = false;
+    document.querySelectorAll('[data-until]').forEach(function (b) {
+      var left = +b.dataset.until - Date.now();
+      if (left <= 0) expired = true;
+      else { var cd = b.querySelector('.cd'); if (cd) cd.textContent = mmss(left); }
+    });
+    if (expired) render();
+  }, 1000);
+
+  // Links from Staff Home (STAFF.html?tab=requests&status=pending)
+  var qs = new URLSearchParams(location.search);
+
+  /* ---------- Start ---------- */
+  if (qs.get('q')) fSearch.value = qs.get('q');
+  setTab(qs.get('tab') === 'requests' ? 'requests' : 'reports', qs.get('status') || '');
+  var first = allOf('reports').filter(function (r) { return stageOf(r) === 'review'; })
+    .sort(function (a, b) { return b.createdAt.localeCompare(a.createdAt); })[0];
+  if (first && !narrow.matches) select(key(first), false);
+})();
+</script>
+</body>
+</html>

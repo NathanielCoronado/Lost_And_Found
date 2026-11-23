@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Account Settings | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .mode-chip { display: none; }
+  .editing .mode-chip { display: inline-block; }
+  .locked .js-edit-only, .editing .js-view-only { display: none; }
+  .account-actions { justify-content: space-between; }
+  .account-actions .right { display: flex; gap: 12px; flex-wrap: wrap; }
+  #confirmText { text-transform: uppercase; }
+  .id-card, .pw-card { margin-top: 20px; }
+  .pw-card .card-head { margin-bottom: 0; }
+  .pw-card.open .card-head { margin-bottom: 18px; }
+  .pw-form { max-width: 460px; }
+  .pw-form .field { margin-bottom: 14px; }
+  .pw-form .input-icon input { padding-left: 14px; }
+  .pw-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+  @media (max-width: 680px) { .pw-card .card-head { flex-wrap: wrap; gap: 12px; } .pw-card #pwOpen { width: 100%; }
+    .pw-actions { flex-direction: column-reverse; } .pw-actions .btn { width: 100%; } }
+  .id-card .photo-preview { width: 260px; height: 165px; background-size: contain; background-color: var(--soft); }
+  @media (max-width: 680px) { .id-card .photo-preview { width: 100%; height: 200px; } }
+  @media (max-width: 680px) {
+    .account-actions .right { flex-direction: column-reverse; width: 100%; }
+    .account-actions .right .btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="page">
+    <form class="card locked" id="accountForm" novalidate>
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Account settings</h2>
+          <p class="card-sub" id="accountSub"></p>
+        </div>
+        <span class="pill pill-orange mode-chip">Editing</span>
+      </div>
+
+      <div id="profileFields"></div>
+
+      <div class="form-actions account-actions">
+        <button type="button" class="btn btn-danger-outline js-view-only" id="deleteBtn">Delete account</button>
+        <span class="js-edit-only"></span>
+        <div class="right">
+          <button type="button" class="btn btn-orange js-view-only" id="editBtn">Edit profile</button>
+          <button type="button" class="btn btn-ghost js-edit-only" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-success js-edit-only">Save changes</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Change password (every role) -->
+    <section class="card pw-card" id="pwCard" aria-labelledby="pwTitle">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title" id="pwTitle" style="font-size:22px">Password</h2>
+          <p class="card-sub" id="pwSub"></p>
+        </div>
+        <button type="button" class="btn btn-ghost" id="pwOpen" aria-expanded="false" aria-controls="pwForm">Change password</button>
+      </div>
+      <form class="pw-form" id="pwForm" novalidate hidden>
+        <div class="field">
+          <label for="pwCurrent">Current password</label>
+          <div class="input-icon has-toggle">
+            <input type="password" id="pwCurrent" autocomplete="current-password" placeholder="Insert current password">
+            <button type="button" class="pw-toggle" data-target="pwCurrent" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pwNew">New password</label>
+          <div class="input-icon has-toggle">
+            <input type="password" id="pwNew" autocomplete="new-password" placeholder="Insert new password" aria-describedby="pwNewHint">
+            <button type="button" class="pw-toggle" data-target="pwNew" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+          <p class="hint" id="pwNewHint">At least 8 characters with an uppercase letter, a lowercase letter, a number, and a symbol.</p>
+        </div>
+        <div class="field">
+          <label for="pwConfirm">Confirm new password</label>
+          <div class="input-icon has-toggle">
+            <input type="password" id="pwConfirm" autocomplete="new-password" placeholder="Insert new password again">
+            <button type="button" class="pw-toggle" data-target="pwConfirm" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+        </div>
+        <p class="hint" style="margin:-4px 0 14px 2px">Forgot your current password? Log out and use <a href="FORGOT.html">Forgot password?</a></p>
+        <div class="pw-actions">
+          <button type="button" class="btn btn-ghost" id="pwCancel">Cancel</button>
+          <button type="submit" class="btn btn-success" id="pwSave">Save new password</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Valid ID (community users and staff) -->
+    <section class="card id-card" id="idCard" hidden aria-labelledby="idTitle">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title" id="idTitle" style="font-size:22px">Valid ID or Student ID</h2>
+          <p class="card-sub">The admin uses this to verify your account.</p>
+        </div>
+      </div>
+      <div class="photo-picker">
+        <div class="photo-preview" id="idPreview"></div>
+        <div class="photo-controls">
+          <div class="select" style="margin-bottom:10px"><select id="idTypeSel" aria-label="Type of ID">
+            <option value="student">Student ID</option>
+            <option value="government">Government ID</option>
+            <option value="other">Other valid ID</option>
+          </select></div>
+          <label class="btn btn-ghost" for="idFile">Upload new ID</label>
+          <p class="hint" id="idHint"></p>
+          <input type="file" id="idFile" accept="image/*" hidden>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Delete account -->
+  <div class="modal-backdrop center" id="deleteModal">
+    <div class="modal narrow" role="alertdialog" aria-modal="true" aria-labelledby="dTitle" aria-describedby="dDesc">
+      <h3 id="dTitle" style="color:var(--red);margin-right:0">Delete your account?</h3>
+      <p id="dDesc" class="modal-lead">You'll be logged out and can't use this account anymore. Deleting it also removes:</p>
+      <ul>
+        <li>Your profile and photo</li>
+        <li>Your lost and found reports</li>
+        <li>Your claim requests and found notices</li>
+      </ul>
+      <p class="hint" style="margin:0 0 14px">We keep a copy for <span id="keepDays"></span> days. If you sign up again with the same email, you can bring it back or start fresh.</p>
+      <div class="field">
+        <label for="confirmText">Type DELETE to confirm</label>
+        <input type="text" id="confirmText" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="keepBtn">Keep account</button>
+        <button type="button" class="btn btn-danger" id="confirmDelete" disabled>Delete account</button>
+      </div>
+    </div>
+  </div>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = LF.requireLogin({ needProfile: true });
+  if (!user) return;
+
+  var form = document.getElementById('accountForm');
+  var editing = false;
+  function $(id) { return document.getElementById(id); }
+
+  LF.mountShell({
+    title: 'Account Settings',
+    active: 'ACCOUNT.html',
+    beforeLogout: function () {
+      return !(editing && isDirty()) || window.confirm('You have unsaved changes. Log out anyway?');
+    }
+  });
+
+  if (LF.isAdmin(user)) $('deleteBtn').hidden = true;
+  $('keepDays').textContent = LF.ARCHIVE_DAYS;   // keep the admin account
+  $('accountSub').textContent = (LF.isAdmin(user) ? 'Administrator' : user.accountType === 'staff' ? 'Staff account' : 'Community user') +
+    ', joined ' + LF.fmtDate(user.createdAt);
+
+  // Admin: name, email, optional mobile and photo only
+  var pf = LF.profileForm($('profileFields'), { userId: user.id, simple: LF.isAdmin(user) });
+
+  function savedData() {
+    return Object.assign({}, user.profile, { email: user.email });
+  }
+  function isDirty() {
+    return JSON.stringify(pf.read()) !== JSON.stringify(savedSnapshot);
+  }
+  var savedSnapshot = null;
+
+  function load() {
+    pf.write(savedData());
+    savedSnapshot = pf.read();
+  }
+  // Older saved addresses may be spelled differently from the PSGC list; compare against the filled-in form.
+  pf.ready.then(function () { if (!editing) savedSnapshot = pf.read(); });
+
+  function setEditing(on) {
+    editing = on;
+    pf.setLocked(!on);
+    form.classList.toggle('editing', on);
+    form.classList.toggle('locked', !on);
+    if (on) pf.focus();
+  }
+
+  $('editBtn').addEventListener('click', function () { setEditing(true); });
+
+  $('cancelBtn').addEventListener('click', function () {
+    if (!isDirty()) { load(); setEditing(false); return; }
+    LF.confirm({ title: 'Discard your changes?', confirmText: 'Discard', cancelText: 'Keep editing' })
+      .then(function (yes) { if (yes) { load(); setEditing(false); } });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!editing) return;
+    var bad = pf.validate();
+    if (bad) { bad.focus(); LF.toast('Fix the highlighted fields.', true); return; }
+
+    var data = pf.read();
+    var emailChanged = String(data.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase();
+    // A new email must be confirmed with a code sent to it.
+    (emailChanged ? LF.askEmailCode(data.email, 'change') : Promise.resolve('')).then(function (code) {
+      if (code === null) return;
+      saveProfile(data, code, emailChanged);
+    });
+  });
+
+  function saveProfile(data, code, emailChanged) {
+    var patch = {
+      profile: Object.assign({}, user.profile, data),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email          // this is also the email used to log in
+    };
+    if (emailChanged) patch.emailCode = code;
+    var saved = LF.updateUser(user.id, patch);
+    if (!saved) { LF.toast(LF.STORAGE_FULL, true); return; }
+    delete saved.emailCode;
+
+    user = saved;
+    LF.logActivity(user.id, 'Updated their profile');
+    savedSnapshot = pf.read();
+    setEditing(false);
+    LF.refreshShellUser();
+    LF.toast(emailChanged ? 'Changes saved. Use your new email the next time you log in.' : 'Changes saved.');
+  }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (editing && isDirty()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  /* ---------- Delete account ---------- */
+  var modal = $('deleteModal'), confirmText = $('confirmText'), confirmBtn = $('confirmDelete');
+
+  $('deleteBtn').addEventListener('click', function () {
+    confirmText.value = '';
+    confirmBtn.disabled = true;
+    LF.openModal(modal);
+    confirmText.focus();
+  });
+  $('keepBtn').addEventListener('click', function () { LF.closeModal(modal); });
+  modal.addEventListener('click', function (e) { if (e.target === modal) LF.closeModal(modal); });
+  confirmText.addEventListener('input', function () {
+    confirmBtn.disabled = confirmText.value.trim().toUpperCase() !== 'DELETE';
+  });
+
+  confirmBtn.addEventListener('click', function () {
+    // Replace with a fetch() to your backend once you have one.
+    LF.deleteOwnAccount(user.id);
+    editing = false;
+    LF.setFlash('Your account was deleted.', 'info');
+    window.location.href = 'LOGIN.html';
+  });
+
+  /* ---------- Change password ---------- */
+  var pwForm = $('pwForm'), pwTries = 0, pwLockUntil = 0;
+  function pwSubText() {
+    var u = LF.getUser(user.id) || user;
+    $('pwSub').textContent = u.passwordChangedAt
+      ? 'Last changed ' + LF.fmtDate(u.passwordChangedAt) + ' at ' + LF.fmtTime(u.passwordChangedAt) + '.'
+      : 'Change the password you use to log in.';
+  }
+  function pwShow(on) {
+    pwForm.hidden = !on;
+    $('pwCard').classList.toggle('open', on);
+    $('pwOpen').hidden = on;
+    $('pwOpen').setAttribute('aria-expanded', String(on));
+    ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(function (id) { $(id).value = ''; $(id).type = 'password'; LF.clearFieldError($(id)); });
+    pwForm.querySelectorAll('.pw-toggle').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Show password'); b.innerHTML = ''; });
+    LF.drawToggles();
+    $('pwNewHint').classList.remove('invalid');
+    if (on) $('pwCurrent').focus(); else $('pwOpen').focus();
+  }
+  $('pwOpen').addEventListener('click', function () { pwShow(true); });
+  $('pwCancel').addEventListener('click', function () { pwShow(false); });
+  $('pwNew').addEventListener('input', function () {
+    $('pwNewHint').classList.toggle('invalid', this.value.length > 0 && !LF.isStrongPassword(this.value));
+  });
+  ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(function (id) {
+    $(id).addEventListener('input', function () { LF.clearFieldError($(id)); });
+  });
+  pwForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var cur = $('pwCurrent').value, nw = $('pwNew').value, cf = $('pwConfirm').value;
+    if (Date.now() < pwLockUntil) {
+      LF.setFieldError($('pwCurrent'), 'Too many wrong tries. Wait ' + Math.ceil((pwLockUntil - Date.now()) / 1000) + ' seconds.');
+      return;
+    }
+    if (!cur) { LF.setFieldError($('pwCurrent'), 'Enter your current password.'); $('pwCurrent').focus(); return; }
+    if (!LF.isStrongPassword(nw)) {
+      LF.setFieldError($('pwNew'), 'Use at least 8 characters with an uppercase letter, a lowercase letter, a number, and a symbol.');
+      $('pwNew').focus(); return;
+    }
+    if (nw !== cf) { LF.setFieldError($('pwConfirm'), 'Passwords don\'t match.'); $('pwConfirm').focus(); return; }
+    var err = LF.changePassword(user.id, cur, nw);
+    if (err === 'Your current password is wrong.') {
+      pwTries++;
+      if (pwTries >= 5) { pwTries = 0; pwLockUntil = Date.now() + 60000; err = 'Too many wrong tries. Wait 60 seconds.'; }
+      LF.setFieldError($('pwCurrent'), err); $('pwCurrent').select(); return;
+    }
+    if (err) { LF.setFieldError($('pwNew'), err); $('pwNew').focus(); return; }
+    pwTries = 0;
+    user = LF.getUser(user.id);
+    pwShow(false);
+    pwSubText();
+    LF.toast('Password changed. Use the new one next time you log in.');
+  });
+  pwSubText();
+
+  /* ---------- Valid ID ---------- */
+  function showId() {
+    var box = $('idPreview');
+    box.style.backgroundImage = user.validId ? 'url("' + user.validId + '")' : '';
+    box.classList.toggle('has-image', !!user.validId);
+    box.innerHTML = user.validId ? '' : LF.photoPlaceholder('No ID uploaded');
+    $('idHint').textContent = user.validId
+      ? 'Uploading a new photo replaces the current one.'
+      : 'Student ID or any valid government ID.';
+  }
+  if (!LF.isAdmin(user)) {
+    $('idCard').hidden = false;
+    showId();
+    $('idTypeSel').value = user.idType || 'other';
+    $('idTypeSel').addEventListener('change', function () {
+      var saved = LF.updateUser(user.id, { idType: this.value });
+      if (!saved) return LF.toast(LF.STORAGE_FULL, true);
+      user = saved;
+      LF.toast('ID type saved: ' + LF.idTypeLabel(user) + '.');
+    });
+    $('idFile').addEventListener('change', function () {
+      var f = this.files[0];
+      if (!f) return;
+      LF.readPhoto(f, 1200).then(function (data) {
+        var saved = LF.updateUser(user.id, { validId: data, idType: $('idTypeSel').value, validIdUpdatedAt: new Date().toISOString() });
+        if (!saved) return LF.toast(LF.STORAGE_FULL, true);
+        user = saved;
+        LF.logActivity(user.id, 'Uploaded a new valid ID');
+        showId();
+        LF.toast('Valid ID updated. The admin can see the new photo.');
+      }).catch(function (err) { LF.toast(err.message, true); });
+      this.value = '';
+    });
+  }
+
+  /* ---------- Start ---------- */
+  load();
+  setEditing(false);
+})();
+</script>
+</body>
+</html>

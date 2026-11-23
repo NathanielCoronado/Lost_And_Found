@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Forgot Password | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .fp-card { max-width: 480px; }
+  .fp-icon {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 14px;
+    display: grid; place-items: center; background: #e6eefa; color: var(--blue);
+  }
+  .fp-icon svg { width: 30px; height: 30px; }
+  .fp-card .card-title, .fp-card .card-sub { text-align: center; }
+  .fp-card .card-sub { margin-bottom: 22px; }
+  .steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 22px; }
+  .steps span { width: 34px; height: 5px; border-radius: 99px; background: var(--border); }
+  .steps span.on { background: var(--blue); }
+  .code-input {
+    text-align: center; font-size: 26px !important; letter-spacing: 10px; font-weight: 600;
+    font-variant-numeric: tabular-nums; height: 60px !important;
+  }
+  .demo-code { text-align: center; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: var(--navy); margin-top: 6px; }
+  .resend-row { text-align: center; font-size: 14px; color: var(--muted); }
+  .resend-row button { background: none; border: none; color: var(--blue); font: 600 14px var(--font); cursor: pointer; padding: 6px; text-decoration: underline; }
+  .resend-row button:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+  .code-timer { text-align: center; font-size: 14px; font-weight: 600; color: #b76a05; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .code-timer.expired { color: var(--red); }
+  .who { text-align: center; font-weight: 600; color: var(--navy); margin: -12px 0 18px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+  <header class="topbar simple">
+    <div class="topbar-title">Password Recovery</div>
+  </header>
+
+  <main class="auth-main">
+    <section class="card auth-card fp-card" aria-live="polite">
+      <div class="fp-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/><circle cx="12" cy="15.5" r="1.2"/></svg>
+      </div>
+      <h1 class="card-title" id="fpTitle">Forgot your password?</h1>
+      <p class="card-sub" id="fpSub">Enter the email you use to log in. We'll send you a 6-digit code.</p>
+      <div class="steps" aria-hidden="true"><span></span><span></span><span></span></div>
+
+      <div class="alert" id="msg" role="alert" hidden></div>
+
+      <!-- Step 1: email -->
+      <form class="stack" id="stepEmail" novalidate>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input type="email" id="email" autocomplete="email" placeholder="Insert email address">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Send code</button>
+        <p class="center-link"><a href="LOGIN.html">Back to log in</a></p>
+      </form>
+
+      <!-- Step 2: code -->
+      <form class="stack" id="stepCode" novalidate hidden>
+        <p class="who" id="codeWho"></p>
+        <div class="field">
+          <label for="code">6-digit code</label>
+          <input type="text" id="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+          <p class="code-timer" id="codeTimer" aria-live="polite"></p>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Verify code</button>
+        <p class="resend-row">Didn't get it? Check your spam folder or <button type="button" id="resendBtn">send a new code</button></p>
+        <p class="center-link"><a href="#" id="changeEmail">Use a different email</a></p>
+      </form>
+
+      <!-- Step 3: new password -->
+      <form class="stack" id="stepNew" novalidate hidden>
+        <div class="field">
+          <label for="newPw">New password</label>
+          <div class="input-icon has-toggle">
+            <input type="password" id="newPw" autocomplete="new-password" style="padding-left:14px" aria-describedby="pwHint">
+            <button type="button" class="pw-toggle" data-target="newPw" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+          <p class="hint" id="pwHint">At least 8 characters with an uppercase letter, a lowercase letter, a number, and a symbol.</p>
+        </div>
+        <div class="field">
+          <label for="confirmPw">Confirm new password</label>
+          <div class="input-icon has-toggle">
+            <input type="password" id="confirmPw" autocomplete="new-password" style="padding-left:14px">
+            <button type="button" class="pw-toggle" data-target="confirmPw" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="saveBtn">Save new password</button>
+      </form>
+
+      <!-- Step 4: done -->
+      <div class="stack" id="stepDone" hidden>
+        <a class="btn btn-primary btn-block" href="LOGIN.html" id="doneBtn">Log in</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">Lost and Found Management System | Web-Based Platform<br>Need help? <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a></footer>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+
+  var forced = new URLSearchParams(location.search).get('mode') === 'change';
+  var resendTimer = null;
+
+  function showMsg(html, type) {
+    var m = $('msg');
+    m.className = 'alert alert-' + (type || 'error');
+    m.innerHTML = html;
+    m.hidden = false;
+  }
+  function hideMsg() { $('msg').hidden = true; }
+
+  function step(n) {
+    ['stepEmail', 'stepCode', 'stepNew', 'stepDone'].forEach(function (id, i) { $(id).hidden = i !== n - 1; });
+    document.querySelectorAll('.steps span').forEach(function (s, i) { s.classList.toggle('on', i < n); });
+    if (!forced) {
+      var T = {
+        1: ['Forgot your password?', 'Enter the email you use to log in. We\'ll send you a 6-digit code.'],
+        2: ['Check your email', 'Enter the 6-digit code we sent. It expires in ' + LF.RESET_LABEL + '.'],
+        3: ['Choose a new password', 'Use a password you don\'t use on other sites.']
+      }[n];
+      if (T) { $('fpTitle').textContent = T[0]; $('fpSub').textContent = T[1]; }
+    }
+    var focus = { 1: 'email', 2: 'code', 3: 'newPw' }[n];
+    if (focus) setTimeout(function () { $(focus).focus(); }, 50);
+  }
+
+  function maskEmail(e) {
+    var p = e.split('@');
+    return p[0].slice(0, 2) + '•••' + (p[0].length > 3 ? p[0].slice(-1) : '') + '@' + p[1];
+  }
+
+  /* ---------- Forced change after logging in with an admin's temporary password ---------- */
+  if (forced) {
+    var who = LF.pwChangeUser();
+    if (!who) { location.replace('LOGIN.html'); return; }
+    $('fpTitle').textContent = 'Set a new password';
+    $('fpSub').textContent = 'Hi ' + who.name.split(' ')[0] + '. An admin reset your password. Choose a new one to continue.';
+    document.querySelector('.steps').hidden = true;
+    step(3);
+  } else {
+    step(1);
+    if (!LF.emailReady()) {
+      showMsg('Password reset by email isn\'t set up yet. Email <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a> for help.', 'info');
+    }
+  }
+
+  /* ---------- Step 1: send code (the server makes it and emails it) ---------- */
+  function sendCode(email, isResend) {
+    return LF.startPasswordReset(email).then(function (r) {
+      if (!r.ok) { showMsg(LF.esc(r.error)); return false; }
+      $('codeWho').textContent = maskEmail(email);
+      // Same message either way, so strangers can't check which emails have accounts
+      showMsg((isResend ? 'New code sent. ' : '') + 'If an account uses <b>' + LF.esc(email) + '</b>, we sent a 6-digit code to it. ' +
+              'It expires in ' + LF.RESET_LABEL + '. Check your spam folder too.', 'success');
+      step(2);
+      cooldown();
+      startCodeTimer(r.expires);
+      return true;
+    });
+  }
+
+  $('stepEmail').addEventListener('submit', function (e) {
+    e.preventDefault(); hideMsg();
+    var email = $('email').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('Enter a valid email address.'); $('email').focus(); return; }
+    var btn = this.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    sendCode(email).then(function () { btn.disabled = false; btn.textContent = 'Send code'; });
+  });
+
+  // Code countdown (1 min 30 sec)
+  var codeTimer = null;
+  function startCodeTimer(expires) {
+    clearInterval(codeTimer);
+    function tick() {
+      var left = expires - Date.now();
+      if (left <= 0) {
+        clearInterval(codeTimer);
+        $('codeTimer').textContent = 'Code expired. Send a new code.';
+        $('codeTimer').classList.add('expired');
+        return;
+      }
+      var s = Math.ceil(left / 1000);
+      $('codeTimer').textContent = 'Code expires in ' + String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+      $('codeTimer').classList.remove('expired');
+    }
+    tick(); codeTimer = setInterval(tick, 1000);
+  }
+
+  function cooldown() {
+    var left = 30, b = $('resendBtn');
+    clearInterval(resendTimer);
+    b.disabled = true; b.textContent = 'send a new code (' + left + 's)';
+    resendTimer = setInterval(function () {
+      left--;
+      if (left <= 0) { clearInterval(resendTimer); b.disabled = false; b.textContent = 'send a new code'; }
+      else b.textContent = 'send a new code (' + left + 's)';
+    }, 1000);
+  }
+  $('resendBtn').addEventListener('click', function () { hideMsg(); sendCode($('email').value.trim(), true); });
+  $('changeEmail').addEventListener('click', function (e) { e.preventDefault(); hideMsg(); $('code').value = ''; step(1); });
+
+  /* ---------- Step 2: verify code ---------- */
+  $('code').addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 6); });
+  $('stepCode').addEventListener('submit', function (e) {
+    e.preventDefault(); hideMsg();
+    var code = $('code').value;
+    if (code.length !== 6) { showMsg('Enter the 6-digit code.'); $('code').focus(); return; }
+    var err = LF.checkResetCode(code);
+    if (err) { showMsg(LF.esc(err)); $('code').select(); return; }
+    clearInterval(codeTimer);
+    step(3);
+  });
+
+  /* ---------- Step 3: new password ---------- */
+  $('newPw').addEventListener('input', function () {
+    $('pwHint').classList.toggle('invalid', this.value.length > 0 && !LF.isStrongPassword(this.value));
+  });
+  $('stepNew').addEventListener('submit', function (e) {
+    e.preventDefault(); hideMsg();
+    var pw = $('newPw').value;
+    if (!LF.isStrongPassword(pw)) { showMsg('Password needs at least 8 characters with an uppercase letter, a lowercase letter, a number, and a symbol.'); $('newPw').focus(); return; }
+    if (pw !== $('confirmPw').value) { showMsg('Passwords don\'t match.'); $('confirmPw').focus(); return; }
+
+    var res = LF.setNewPassword(pw);
+    if (!res.ok) { showMsg(LF.esc(res.error)); $('newPw').focus(); return; }
+
+    if (forced) { location.replace(res.next); return; }   // already logged in: continue straight in
+    $('fpTitle').textContent = 'Password updated';
+    $('fpSub').textContent = 'You can now log in with your new password.';
+    showMsg('Your password was changed. For your safety, don\'t share it with anyone.', 'success');
+    LF.setFlash('Password updated. Log in with your new password.', 'success');
+    step(4);
+  });
+})();
+</script>
+</body>
+</html>

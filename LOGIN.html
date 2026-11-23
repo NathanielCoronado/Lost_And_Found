@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Log In | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .stamp.logo-box { width: 150px; height: 150px; border-radius: 50%; overflow: hidden; }
+  .feedback { border: 1px solid #f5c2bf; background: #fff7f6; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .feedback h2 { font-size: 17px; color: #b42323; margin-bottom: 6px; }
+  .feedback p { font-size: 14px; color: #4a5568; line-height: 1.5; }
+  .feedback .reason { background: #fff; border: 1px solid #f5c2bf; border-radius: 10px; padding: 10px 12px; margin: 10px 0 12px; color: var(--text); }
+  .feedback .btn { width: 100%; }
+  .feedback a { font-weight: 600; overflow-wrap: anywhere; }
+  .reapply-form { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .reapply-form textarea { min-height: 90px; }
+  .reapply-form .photo-preview { width: 130px; height: 88px; }
+  @media (max-width: 680px) { .stamp.logo-box { width: 96px; height: 96px; } }
+</style>
+</head>
+<body>
+
+  <header class="topbar simple">
+    <div class="topbar-title">Report<span class="sep">|</span>Match<span class="sep">|</span>Recover</div>
+  </header>
+
+  <main class="auth-main">
+    <div class="auth-split">
+
+      <section class="card brand-panel" aria-label="About Lost and Found">
+        <div class="stamp logo-box" id="brandLogo"></div>
+        <p class="brand-tagline">A web-based platform for reporting, matching, and recovering lost items.</p>
+        <p class="brand-headline">Find what you lost.<br>Return what you found.</p>
+        <p class="brand-foot">Secure, simple, and community-based</p>
+      </section>
+
+      <section class="card" aria-label="Log in">
+        <h1 class="card-title" style="text-align:center">Welcome back</h1>
+        <p class="card-sub" style="text-align:center;margin-bottom:22px">Log in to report and track items</p>
+
+        <div class="alert" id="formMsg" role="alert" hidden></div>
+
+        <!-- Shown when an admin declined the account -->
+        <section class="feedback" id="declinedBox" hidden aria-labelledby="dbTitle">
+          <h2 id="dbTitle">Your application was declined</h2>
+          <div id="dbCommentWrap">
+            <p>Comment from the admin:</p>
+            <p class="reason" id="dbReason"></p>
+          </div>
+          <p id="dbNoComment" hidden style="margin-bottom:10px">The admin didn't leave a comment.</p>
+          <p style="margin-bottom:12px">Please sign up again with the correct details and a clear photo of your valid ID. Your old application will be removed.</p>
+          <button type="button" class="btn btn-primary" id="signupAgain">Sign up again</button>
+        </section>
+
+        <!-- Shown when the account was deleted -->
+        <section class="feedback" id="deletedBox" hidden aria-labelledby="delTitle">
+          <h2 id="delTitle">This account was deleted</h2>
+          <p id="delWhen" style="margin-bottom:10px"></p>
+          <div id="delCommentWrap">
+            <p>Comment from the admin:</p>
+            <p class="reason" id="delReason"></p>
+          </div>
+          <p style="margin-bottom:12px">Your profile, reports, and requests were removed. Sign up again with the same email to bring them back or start fresh.
+            If you think this is a mistake, email <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a>.</p>
+          <button type="button" class="btn btn-primary" id="delSignup">Sign up again</button>
+        </section>
+
+        <!-- Shown when an admin blocked the account -->
+        <section class="feedback" id="blockedBox" hidden aria-labelledby="bbTitle">
+          <h2 id="bbTitle">This account is blocked</h2>
+          <div id="bbCommentWrap">
+            <p>Comment from the admin:</p>
+            <p class="reason" id="bbReason"></p>
+          </div>
+          <p>You can't log in or reapply with this account. If you think this is a mistake, email
+            <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a>.</p>
+        </section>
+
+        <form id="loginForm" class="stack" novalidate>
+          <div class="field input-icon">
+            <label for="email" class="sr-only">Email address</label>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>
+            <input type="email" id="email" placeholder="Email address" autocomplete="username" required>
+          </div>
+
+          <div class="field input-icon has-toggle">
+            <label for="password" class="sr-only">Password</label>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" data-target="password" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">Log in</button>
+          <p class="center-link"><a href="FORGOT.html">Forgot password?</a></p>
+
+          <div id="googleArea" hidden>
+          <div class="or-line">or</div>
+          <div id="googleBtn" style="display:flex;justify-content:center;min-height:44px"></div>
+        </div>
+
+          <p class="center-link">Don't have an account? <a href="SIGNUP.html">Sign up</a></p>
+          <p class="contact-line">Need help? Email us at
+            <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a></p>
+        </form>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="footer">Lost and Found Management System | Web-Based Platform<br>Need help? <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a><br><a href="PRIVACY.html">Privacy Policy</a> · <a href="TERMSANDCONDITION.html">Terms and Conditions</a></footer>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Already logged in? Go straight home.
+  if (LF.currentUser()) { window.location.replace(LF.homeFor(LF.currentUser())); return; }
+
+  var form = document.getElementById('loginForm');
+  var email = document.getElementById('email');
+  var password = document.getElementById('password');
+
+  LF.renderLogo(document.getElementById('brandLogo'));
+
+  var flash = LF.takeFlash();
+  if (flash) showMsg(flash.msg, flash.type);
+
+  function showMsg(text, type) {
+    var box = document.getElementById('formMsg');
+    box.className = 'alert alert-' + (type || 'error');
+    box.textContent = text;
+    box.hidden = false;
+  }
+  function hideMsg() { document.getElementById('formMsg').hidden = true; }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    hideMsg();
+    var em = email.value.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      showMsg('Enter a valid email address.');
+      email.focus();
+      return;
+    }
+    if (password.value.length < 8) {
+      showMsg('Password must be at least 8 characters.');
+      password.focus();
+      return;
+    }
+
+    document.getElementById('declinedBox').hidden = true;
+    document.getElementById('blockedBox').hidden = true;
+    document.getElementById('deletedBox').hidden = true;
+    var result = LF.login(em, password.value);
+    if (!result.ok) {
+      if (result.status === 'declined') return showDeclined(result);
+      if (result.status === 'blocked') return showBlocked(result);
+      if (result.status === 'deleted') return showDeleted(result, em);
+      showMsg(result.error, result.type);
+      return;
+    }
+    window.location.href = result.next;
+  });
+
+
+  /* ---------- Declined / blocked: tell the user ---------- */
+  var declinedUserId = null;
+  function showDeclined(res) {
+    declinedUserId = res.userId;
+    document.getElementById('dbReason').textContent = res.note || '';
+    document.getElementById('dbCommentWrap').hidden = !res.note;
+    document.getElementById('dbNoComment').hidden = !!res.note;
+    document.getElementById('declinedBox').hidden = false;
+    document.getElementById('declinedBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function showBlocked(res) {
+    document.getElementById('bbReason').textContent = res.note || '';
+    document.getElementById('bbCommentWrap').hidden = !res.note;
+    document.getElementById('blockedBox').hidden = false;
+    document.getElementById('blockedBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  var deletedEmail = '';
+  function showDeleted(res, em) {
+    deletedEmail = em;
+    var when = LF.fmtDate(res.at) + ' at ' + LF.fmtTime(res.at);
+    document.getElementById('delWhen').textContent = res.by === 'admin'
+      ? 'An admin deleted this account on ' + when + '.'
+      : 'You deleted this account on ' + when + '.';
+    document.getElementById('delReason').textContent = res.note || '';
+    document.getElementById('delCommentWrap').hidden = !(res.by === 'admin' && res.note);
+    document.getElementById('deletedBox').hidden = false;
+    document.getElementById('deletedBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  document.getElementById('delSignup').addEventListener('click', function () {
+    window.location.href = 'SIGNUP.html?email=' + encodeURIComponent(deletedEmail);
+  });
+
+  document.getElementById('signupAgain').addEventListener('click', function () {
+    var old = declinedUserId ? LF.clearDeclined(declinedUserId) : null;
+    var q = old ? '?first=' + encodeURIComponent(old.firstName) + '&last=' + encodeURIComponent(old.lastName) +
+                  '&email=' + encodeURIComponent(old.email) + '&type=' + encodeURIComponent(old.accountType) + '&again=1' : '';
+    window.location.href = 'SIGNUP.html' + q;
+  });
+
+
+  /* ---------- Google sign-in (shown only when google_client_id is set in private/config.php) ---------- */
+  function startGoogle(onCredential) {
+    var gid = LF.googleClientId();
+    if (!gid) return;
+    document.getElementById('googleArea').hidden = false;
+    var s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+    s.onload = function () {
+      var box = document.getElementById('googleBtn');
+      window.google.accounts.id.initialize({ client_id: gid, callback: function (r) { onCredential(r.credential); } });
+      window.google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with',
+        width: Math.max(220, Math.min(400, box.offsetWidth || 320)) });
+    };
+    s.onerror = function () { document.getElementById('googleArea').hidden = true; };
+    document.head.appendChild(s);
+  }
+  startGoogle(function (credential) {
+    hideMsg();
+    ['declinedBox', 'blockedBox', 'deletedBox'].forEach(function (id) { document.getElementById(id).hidden = true; });
+    var result = LF.googleLogin(credential);
+    if (result.ok) { window.location.href = result.next; return; }
+    if (result.status === 'no-account') {
+      window.location.href = 'SIGNUP.html?google=1&email=' + encodeURIComponent(result.email) +
+        '&first=' + encodeURIComponent(result.first) + '&last=' + encodeURIComponent(result.last);
+      return;
+    }
+    if (result.status === 'declined') return showDeclined(result);
+    if (result.status === 'blocked') return showBlocked(result);
+    showMsg(result.error, result.type);
+  });
+})();
+</script>
+</body>
+</html>

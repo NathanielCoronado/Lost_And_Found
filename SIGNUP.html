@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#173462">
+<title>Create an Account | Lost and Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lf-style.css?v=6">
+<style>
+  .upload-pair { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+  .upload-box { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  .upload-box .photo-preview { width: 100%; height: 120px; background-size: contain; }
+  .upload-box .photo-preview.round { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto; background-size: cover; }
+  .upload-box .photo-preview.round .remove-photo { top: 0; right: 0; }
+  .upload-box .btn { width: 100%; cursor: pointer; }
+  .upload-box .hint { margin: 0; }
+  .upload-box.error { border-color: var(--red); background: #fff7f6; }
+  .req { color: var(--red); }
+  @media (max-width: 520px) { .upload-pair { grid-template-columns: 1fr; } }
+  .old-box { border: 1px solid #bcd3f2; background: #f3f8ff; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .old-box h2 { font-size: 17px; color: var(--navy); }
+  .old-box p { font-size: 14px; color: #4a5568; line-height: 1.5; }
+  .old-box .choice-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .old-box.error { border-color: var(--red); background: #fff7f6; }
+</style>
+</head>
+<body>
+
+  <header class="topbar simple">
+    <div class="topbar-title">Report<span class="sep">|</span>Match<span class="sep">|</span>Recover</div>
+  </header>
+
+  <main class="auth-main">
+    <section class="card auth-card" aria-label="Create an account">
+      <h1 class="card-title">Create an account</h1>
+      <p class="card-sub">Start reporting and finding lost items</p>
+
+      <div class="alert" id="formMsg" role="alert" hidden></div>
+
+      <form id="signupForm" class="stack" novalidate>
+        <div class="grid g-2" style="margin:0">
+          <div class="field input-icon">
+            <label for="firstName" class="sr-only">First name</label>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+            <input type="text" id="firstName" placeholder="First name" autocomplete="given-name">
+          </div>
+          <div class="field input-icon">
+            <label for="lastName" class="sr-only">Last name</label>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+            <input type="text" id="lastName" placeholder="Last name" autocomplete="family-name">
+          </div>
+        </div>
+
+        <div class="field input-icon">
+          <label for="email" class="sr-only">Email address</label>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>
+          <input type="email" id="email" placeholder="Email address" autocomplete="email">
+        </div>
+
+        <div class="field">
+          <div class="input-icon has-toggle">
+            <label for="password" class="sr-only">Password</label>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <input type="password" id="password" placeholder="Password" autocomplete="new-password" aria-describedby="pwHint">
+            <button type="button" class="pw-toggle" data-target="password" aria-label="Show password" aria-pressed="false"></button>
+          </div>
+          <p class="hint" id="pwHint">At least 8 characters with an uppercase letter, a lowercase letter, a number, and a symbol.</p>
+        </div>
+
+        <div class="field input-icon has-toggle">
+          <label for="confirmPassword" class="sr-only">Confirm password</label>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <input type="password" id="confirmPassword" placeholder="Confirm password" autocomplete="new-password">
+          <button type="button" class="pw-toggle" data-target="confirmPassword" aria-label="Show password" aria-pressed="false"></button>
+        </div>
+
+        <div>
+          <span class="field-label" id="typeLabel">Account type</span>
+          <div class="choice-group" role="radiogroup" aria-labelledby="typeLabel">
+            <label class="choice"><input type="radio" name="accountType" value="community"> Community user</label>
+            <label class="choice"><input type="radio" name="accountType" value="staff"> Staff</label>
+          </div>
+          <p class="hint">An admin approves every new account before its first log in.</p>
+        </div>
+
+        <div class="upload-pair">
+          <div class="upload-box" id="idBox">
+            <span class="field-label">Valid ID or Student ID <b class="req">*</b></span>
+            <div class="select" style="margin-bottom:10px"><select id="idType" aria-label="Type of ID">
+              <option value="">Choose the type of ID</option>
+              <option value="student">Student ID</option>
+              <option value="government">Government ID (driver's license, passport, PhilSys, UMID, etc.)</option>
+              <option value="other">Other valid ID</option>
+            </select></div>
+            <div class="photo-preview" id="idPreview">
+              <span class="ph">No ID yet</span>
+              <button type="button" class="remove-photo" id="idRemove" aria-label="Remove ID photo">&times;</button>
+            </div>
+            <label class="btn btn-ghost" for="idPhoto">Upload ID photo</label>
+            <p class="hint">A clear photo of your student ID or any valid government ID. Required so the admin can verify you.</p>
+            <input type="file" id="idPhoto" accept="image/*" hidden>
+          </div>
+          <div class="upload-box">
+            <span class="field-label">Profile photo <span>(optional)</span></span>
+            <div class="photo-preview round" id="avatarPreview">
+              <span class="ph">No photo</span>
+              <button type="button" class="remove-photo" id="avatarRemove" aria-label="Remove profile photo">&times;</button>
+            </div>
+            <label class="btn btn-ghost" for="avatarPhoto">Add photo</label>
+            <p class="hint">You can add or change it later in Account Settings.</p>
+            <input type="file" id="avatarPhoto" accept="image/*" hidden>
+          </div>
+        </div>
+
+        <!-- Signing up with the email of a deleted account -->
+        <section class="old-box" id="oldBox" hidden aria-labelledby="oldTitle">
+          <div>
+            <h2 id="oldTitle">We found your deleted account</h2>
+            <p id="oldInfo"></p>
+          </div>
+          <div class="choice-group" role="radiogroup" aria-labelledby="oldTitle">
+            <label class="choice"><input type="radio" name="oldChoice" value="restore"> Bring back my old reports and history</label>
+            <label class="choice"><input type="radio" name="oldChoice" value="fresh"> Start fresh (the old data is erased)</label>
+          </div>
+          <div class="field" id="oldPwField" hidden>
+            <div class="input-icon has-toggle">
+              <label for="oldPassword" class="sr-only">Old password</label>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <input type="password" id="oldPassword" placeholder="Insert old password" autocomplete="off">
+              <button type="button" class="pw-toggle" data-target="oldPassword" aria-label="Show password" aria-pressed="false"></button>
+            </div>
+            <p class="hint">The password of the deleted account, to confirm it's yours. Forgot it? Choose Start fresh.</p>
+          </div>
+          <p>Either way, an admin approves the new account first. Old data comes back once it's approved.</p>
+        </section>
+
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+
+        <div id="googleArea" hidden>
+          <div class="or-line">or</div>
+          <div id="googleBtn" style="display:flex;justify-content:center;min-height:44px"></div>
+        </div>
+
+        <p class="center-link">Already have an account? <a href="LOGIN.html">Log in</a></p>
+        <p class="contact-line">Questions about your account? Email us at
+          <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">Lost and Found Management System | Web-Based Platform<br>Need help? <a href="mailto:minicapstonproject@gmail.com">minicapstonproject@gmail.com</a><br><a href="PRIVACY.html">Privacy Policy</a> · <a href="TERMSANDCONDITION.html">Terms and Conditions</a></footer>
+
+<script src="lf-app.js?v=6"></script>
+<script>
+(function () {
+  'use strict';
+
+  var form = document.getElementById('signupForm');
+  function $(id) { return document.getElementById(id); }
+
+  function showMsg(text, type) {
+    var box = $('formMsg');
+    box.className = 'alert alert-' + (type || 'error');
+    box.textContent = text;
+    box.hidden = false;
+    box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  // Coming back after a declined application: fill in what we know
+  var qs = new URLSearchParams(location.search);
+  if (!qs.get('again') && qs.get('email')) $('email').value = qs.get('email');
+  if (qs.get('again')) {
+    $('firstName').value = qs.get('first') || '';
+    $('lastName').value = qs.get('last') || '';
+    $('email').value = qs.get('email') || '';
+    var tp = form.querySelector('input[name="accountType"][value="' + (qs.get('type') === 'staff' ? 'staff' : 'community') + '"]');
+    if (tp) tp.checked = true;
+    showMsg('Your old application was removed. Sign up again with the correct details and a clear photo of your valid ID.', 'info');
+  }
+
+  /* ---------- Email of a deleted account: bring the old data back, or start fresh ---------- */
+  var oldInfo = null;
+  function checkOld() {
+    var info = LF.deletedArchiveInfo($('email').value);
+    oldInfo = info;
+    $('oldBox').hidden = !info;
+    if (!info) return;
+    var parts = [];
+    if (info.reports) parts.push(info.reports + (info.reports === 1 ? ' report' : ' reports'));
+    if (info.requests) parts.push(info.requests + (info.requests === 1 ? ' claim request or found notice' : ' claim requests and found notices'));
+    if (info.hasHistory || !parts.length) parts.push('your account history');
+    $('oldInfo').textContent = 'This email had an account that was deleted on ' + LF.fmtDate(info.at) + '. We still have ' +
+      parts.join(', ').replace(/, ([^,]*)$/, ' and $1') + '. Choose what to do with it.';
+  }
+  function oldChoice() { var c = form.querySelector('input[name="oldChoice"]:checked'); return c ? c.value : ''; }
+  $('email').addEventListener('change', checkOld);
+  $('email').addEventListener('blur', checkOld);
+  form.querySelectorAll('input[name="oldChoice"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      $('oldBox').classList.remove('error');
+      $('oldPwField').hidden = oldChoice() !== 'restore';
+      if (oldChoice() === 'restore') $('oldPassword').focus();
+    });
+  });
+  checkOld();
+
+  var validId = LF.photoPicker($('idPreview'), $('idPhoto'), $('idRemove'), function (d) { if (d) $('idBox').classList.remove('error'); });
+  var avatar = LF.photoPicker($('avatarPreview'), $('avatarPhoto'), $('avatarRemove'));
+
+  function isStrong(v) {
+    return v.length >= 8 && /[A-Z]/.test(v) && /[a-z]/.test(v) && /[0-9]/.test(v) && /[^A-Za-z0-9]/.test(v);
+  }
+
+  $('password').addEventListener('input', function () {
+    var v = $('password').value;
+    $('pwHint').classList.toggle('invalid', v.length > 0 && !isStrong(v));
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    $('formMsg').hidden = true;
+
+    var firstName = $('firstName').value.trim();
+    var lastName = $('lastName').value.trim();
+    var email = $('email').value.trim();
+    var password = $('password').value;
+    var type = form.querySelector('input[name="accountType"]:checked');
+
+    if (firstName.length < 2 || lastName.length < 2) {
+      showMsg('Enter your first and last name.');
+      (firstName.length < 2 ? $('firstName') : $('lastName')).focus();
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showMsg('Enter a valid email address.'); $('email').focus(); return;
+    }
+    if (!isStrong(password)) {
+      showMsg('Password needs at least 8 characters with an uppercase letter, a lowercase letter, a number, and a symbol.');
+      $('password').focus(); return;
+    }
+    if (password !== $('confirmPassword').value) {
+      showMsg('Passwords don\'t match.'); $('confirmPassword').focus(); return;
+    }
+    if (!type) {
+      showMsg('Choose an account type.'); return;
+    }
+    if (!$('idType').value) {
+      showMsg('Choose the type of ID you are uploading (student ID, government ID, or other).');
+      $('idType').focus();
+      return;
+    }
+    if (!validId.get()) {
+      showMsg('Upload a photo of your valid ID or student ID. The admin needs it to approve your account.');
+      $('idBox').classList.add('error');
+      $('idBox').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    var existing = LF.findUserByEmail(email);
+    if (existing && existing.status === 'declined') {
+      // declined application: removed right before the new one is created (below)
+    } else if (existing && existing.status === 'blocked') {
+      showMsg('This email belongs to a blocked account. Contact minicapstonproject@gmail.com for help.'); $('email').focus(); return;
+    } else if (existing) {
+      showMsg('An account with this email already exists. Log in instead.'); $('email').focus(); return;
+    }
+
+    checkOld();
+    var restore = false;
+    if (oldInfo) {
+      var choice = oldChoice();
+      if (!choice) {
+        showMsg('Choose whether to bring back your old reports and history, or start fresh.');
+        $('oldBox').classList.add('error');
+        $('oldBox').scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+      }
+      if (choice === 'restore') {
+        if (!LF.checkArchivePassword(email, $('oldPassword').value)) {
+          showMsg('The old password is wrong. Try again, or choose Start fresh.');
+          $('oldPassword').focus(); return;
+        }
+        restore = true;
+      }
+    }
+
+    // Prove the email is real and yours: we email a 6-digit code first.
+    var submitBtn = this.querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    LF.askEmailCode(email, 'signup', firstName).then(function (code) {
+      if (code === null) { submitBtn.disabled = false; return; }
+      if (existing && existing.status === 'declined') LF.clearDeclined(existing.id);   // declined application: start fresh
+      var user = LF.createUser({
+        firstName: firstName, lastName: lastName, email: email, restore: restore, emailCode: code,
+        password: password, accountType: type.value, validId: validId.get(), idType: $('idType').value, photo: avatar.get()
+      });
+      if (!user) { submitBtn.disabled = false; showMsg(LF.STORAGE_FULL); return; }
+      window.location.href = 'TERMSANDCONDITION.html';
+    });
+  });
+
+
+  /* ---------- Google sign-in (shown only when google_client_id is set in private/config.php) ---------- */
+  function startGoogle(onCredential) {
+    var gid = LF.googleClientId();
+    if (!gid) return;
+    document.getElementById('googleArea').hidden = false;
+    var s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+    s.onload = function () {
+      var box = document.getElementById('googleBtn');
+      window.google.accounts.id.initialize({ client_id: gid, callback: function (r) { onCredential(r.credential); } });
+      window.google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with',
+        width: Math.max(220, Math.min(400, box.offsetWidth || 320)) });
+    };
+    s.onerror = function () { document.getElementById('googleArea').hidden = true; };
+    document.head.appendChild(s);
+  }
+  // Fills in name and email from Google. The account still needs a password and a valid ID.
+  function fillFromGoogle(first, last, email) {
+    if (first) $('firstName').value = first;
+    if (last) $('lastName').value = last;
+    if (email) { $('email').value = email; checkOld(); }
+    showMsg('We filled in your name and email from Google. Choose a password and upload your valid ID to finish signing up.', 'info');
+    $('password').focus();
+  }
+  if (qs.get('google')) fillFromGoogle(qs.get('first'), qs.get('last'), qs.get('email'));
+  startGoogle(function (credential) {
+    try {
+      var p = JSON.parse(decodeURIComponent(escape(atob(credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
+      fillFromGoogle(p.given_name || '', p.family_name || '', p.email || '');
+    } catch (e) { showMsg('Google sign-up didn\'t work. Fill in the form instead.'); }
+  });
+})();
+</script>
+</body>
+</html>
