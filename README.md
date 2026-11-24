@@ -1,23 +1,92 @@
-# Lost & Found Management System
+<div align="center">
 
-A web app for reporting, matching, and claiming lost and found items, with admin and staff review, messaging, and notifications.
+# 🔎 Lost & Found
 
-## Lost & Found Team
+### Find what you lost. Return what you found.
 
-| Name | Role |
+**REPORT &nbsp;|&nbsp; MATCH &nbsp;|&nbsp; RECOVER**
+
+A secure, community-based web platform for reporting, matching, and recovering lost items,
+with staff review, an admin dashboard, messaging, and notifications.
+
+<img src="docs/screenshots/01-login.png" alt="Lost & Found login page" width="85%">
+
+`HTML` · `CSS` · `JavaScript` · `PHP` · `MySQL`
+
+</div>
+
+---
+
+## 🎒 What is Lost & Found?
+
+Someone loses a wallet in the library. Someone else finds a set of keys at the main gate.
+**Lost & Found** connects the two: people report what they lost or found, staff review and post each report,
+and owners can search, message, and claim their items back, all in one place.
+
+| 🧭 Step | What happens |
 |---|---|
-| Nathaniel Coronado | Repository owner |
-| _Add member_ | _Role_ |
-| _Add member_ | _Role_ |
+| **1. Report** | Report a lost or found item with photos, location, date, and description. |
+| **2. Match** | Staff approve and post it. Everyone can browse and search *Matching & Search*. |
+| **3. Recover** | Owners send a claim request, chat with the finder or the office, and pick up the item. |
 
-> Replace the placeholder rows with your team members and their roles.
+## 🏷️ Features
 
-## Getting started
+- 🔐 **Accounts with approval:** sign up with a valid ID and an emailed 6-digit code; the admin approves every new account.
+- 📝 **Lost & found reports:** up to 4 photos each, edit while open, no accidental double posts.
+- 🔍 **Matching & Search:** filter by category, location, or case number; request to claim in one click.
+- 🧑‍💼 **Staff & admin dashboards:** approve, decline, post, mark *At the office*, dispose after 90 days.
+- 💬 **Messaging:** chat with the Lost and Found Office or with the owner or finder, with photos.
+- 🔔 **Notifications & email:** in-app bell plus Gmail email for codes, resets, and account changes.
+- 🇵🇭 **Philippine address list:** regions, provinces, cities, barangays, and ZIP codes, works offline.
+- 🌐 **Google sign-in** (optional) and a clean design that works on phones.
+
+## 🖼️ Screenshots
+
+> Sample data only. The accounts and reports shown are made up for the demo.
+
+| Home | Matching & Search |
+|---|---|
+| <img src="docs/screenshots/03-home.png" alt="Home"> | <img src="docs/screenshots/06-matching-search.png" alt="Matching and Search"> |
+| **Report a lost item** | **My Reports** |
+| <img src="docs/screenshots/04-report-lost.png" alt="Report a lost item"> | <img src="docs/screenshots/07-my-reports.png" alt="My Reports"> |
+| **Admin dashboard** | **Pending reports (review)** |
+| <img src="docs/screenshots/09-admin-home.png" alt="Admin dashboard"> | <img src="docs/screenshots/10-admin-pending-reports.png" alt="Pending reports"> |
+| **Staff home** | **Account management** |
+| <img src="docs/screenshots/08-staff-home.png" alt="Staff home"> | <img src="docs/screenshots/11-admin-accounts.png" alt="Account management"> |
+
+<details>
+<summary>More screens (sign up, report found item, mobile)</summary>
+
+| Sign up | Report a found item | Mobile |
+|---|---|---|
+| <img src="docs/screenshots/02-signup.png" alt="Sign up"> | <img src="docs/screenshots/05-report-found.png" alt="Report found item"> | <img src="docs/screenshots/13-home-mobile.png" alt="Mobile home" width="220"> |
+
+</details>
+
+## 🧑‍💻 Lost & Found Team
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/NathanielCoronado">
+        <img src="https://github.com/NathanielCoronado.png?size=120" width="100" alt="Nathaniel Coronado"><br>
+        <b>Nathaniel Coronado</b>
+      </a><br>
+      🏷️ Founder &amp; Creator
+    </td>
+  </tr>
+</table>
+
+## 🚀 Getting started
 
 1. Copy `private/config.example.php` to `private/config.php` and fill in your database (and optional Gmail / Google) settings. `config.php` is git-ignored: never commit it.
 2. Import the SQL files in order in phpMyAdmin (`database.sql`, then each `database-batchN.sql`).
 3. Create the admin account with `setup.php`, then delete it.
 4. Keep all files in one folder and open `LOGIN.html` (or `index.html`) to start.
+
+---
+
+## 📚 Documentation
 
 ## Files
 
